@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>אולפן AppNest</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#0a0a0a; --bg2:#131313; --card:#181818; --card2:#202020;
+    --line:#2b2b2b; --txt:#f2f2f2; --muted:#9a9a9a;
+    --gold:#e8b923; --gold2:#c99a12; --goldsoft:rgba(232,185,35,.14);
+    --red:#e5484d; --green:#3fb950; --blue:#4a9eff;
+    --radius:16px; --shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+  [data-theme="day"]{
+    --bg:#f4f2ec; --bg2:#eae7de; --card:#ffffff; --card2:#f6f4ee;
+    --line:#e0dccf; --txt:#1c1c1c; --muted:#6b6b6b;
+    --gold:#b8860b; --gold2:#9a6f08; --goldsoft:rgba(184,134,11,.12);
+    --shadow:0 8px 24px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:linear-gradient(180deg,var(--bg),var(--bg2));
+    color:var(--txt); min-height:100vh; line-height:1.5;
+    padding-bottom:80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:14px}
+  header.app{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px;margin-bottom:6px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px}
+  .brand .logo{
+    width:34px;height:34px;border-radius:10px;
+    background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));
+    display:grid;place-items:center;color:#111;font-size:18px;box-shadow:0 0 14px var(--goldsoft)
+  }
+  .brand b{color:var(--gold)}
+  .hbtns{display:flex;gap:6px}
+  .icon-btn{
+    background:var(--card);border:1px solid var(--line);color:var(--txt);
+    width:40px;height:40px;border-radius:12px;font-size:17px;cursor:pointer;
+    display:grid;place-items:center;transition:.15s
+  }
+  .icon-btn:hover{border-color:var(--gold)}
+  h2.section{font-size:15px;color:var(--muted);margin:18px 4px 8px;font-weight:600;letter-spacing:.02em}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:12px;box-shadow:var(--shadow)
+  }
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 14px;cursor:pointer;text-align:center;transition:.15s;
+    display:flex;flex-direction:column;align-items:center;gap:8px
+  }
+  .tile:hover{border-color:var(--gold);transform:translateY(-2px)}
+  .tile .em{font-size:30px}
+  .tile .t{font-weight:700}
+  .tile .s{font-size:12px;color:var(--muted)}
+  .btn{
+    background:linear-gradient(180deg,var(--gold),var(--gold2));color:#111;border:none;
+    padding:13px 18px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;
+    width:100%;transition:.15s;box-shadow:0 4px 14px var(--goldsoft)
+  }
+  .btn:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4)}
+  .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line);box-shadow:none}
+  .btn.ghost:hover{border-color:var(--gold)}
+  .btn.red{background:linear-gradient(180deg,#f0575c,var(--red));color:#fff}
+  .btn.sm{padding:9px 12px;font-size:13px;width:auto}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row.tight{gap:6px}
+  label.field{display:block;margin:10px 0 4px;font-size:13px;color:var(--muted)}
+  input[type=text],select{
+    width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);
+    padding:11px;border-radius:10px;font-size:15px;font-family:inherit
+  }
+  .switch{display:flex;align-items:center;gap:10px;padding:10px 0}
+  .switch input{width:44px;height:26px;appearance:none;background:var(--line);border-radius:20px;position:relative;cursor:pointer;transition:.2s;flex:0 0 auto}
+  .switch input:checked{background:var(--gold)}
+  .switch input::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+  .switch input:checked::after{inset-inline-start:21px}
+  .seg{display:flex;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:6px 0}
+  .seg button{flex:1;background:none;border:none;color:var(--muted);padding:12px 6px;font-weight:700;cursor:pointer;font-size:13px;font-family:inherit}
+  .seg button.on{background:var(--goldsoft);color:var(--gold)}
+  .timer{font-size:44px;font-weight:800;text-align:center;letter-spacing:2px;font-variant-numeric:tabular-nums;margin:8px 0}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;margin-inline-end:6px;vertical-align:middle}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .lib-item{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--bg2)}
+  .lib-item .meta{flex:1;min-width:0}
+  .lib-item .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lib-item .sub{font-size:12px;color:var(--muted)}
+  .lib-item .kind{font-size:22px}
+  .mini{background:var(--card2);border:1px solid var(--line);color:var(--txt);width:34px;height:34px;border-radius:9px;cursor:pointer;display:grid;place-items:center;font-size:14px}
+  .mini:hover{border-color:var(--gold)}
+  canvas.wave{width:100%;height:120px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;display:block;touch-action:none}
+  .clip{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--bg2);font-size:13px}
+  .clip .ci{flex:1}
+  .empty{text-align:center;color:var(--muted);padding:28px 10px}
+  .empty .em{font-size:40px;display:block;margin-bottom:8px}
+  nav.tab{
+    position:fixed;bottom:0;inset-inline:0;background:var(--card);border-top:1px solid var(--line);
+    display:flex;justify-content:space-around;padding:6px 0 max(6px,env(safe-area-inset-bottom));z-index:50
+  }
+  nav.tab button{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 12px;font-family:inherit}
+  nav.tab button .ic{font-size:20px}
+  nav.tab button.on{color:var(--gold)}
+  .toast{position:fixed;bottom:84px;inset-inline:0;display:flex;justify-content:center;z-index:100;pointer-events:none}
+  .toast > div{background:var(--card2);border:1px solid var(--gold);color:var(--txt);padding:11px 18px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;max-width:90%}
+  .hide{display:none!important}
+  video.prev,audio.prev{width:100%;border-radius:12px;margin-top:10px;background:#000}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
+  .badge{display:inline-block;background:var(--goldsoft);color:var(--gold);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;margin-inline-start:6px}
+  .prog{height:8px;background:var(--bg2);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:10px}
+  .prog > div{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));width:0%;transition:.2s}
+  a.link{color:var(--gold);cursor:pointer}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:200;padding:16px}
+  .modal{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;max-width:420px;width:100%;box-shadow:var(--shadow)}
+</style>
+</head>
+<body data-theme="night">
+<div class="wrap">
+  <header class="app">
+    <div class="brand"><span class="logo">🎬</span><span>אולפן <b>AppNest</b></span></div>
+    <div class="hbtns">
+      <button class="icon-btn" id="langBtn" title="שפה">EN</button>
+      <button class="icon-btn" id="themeBtn" title="מצב יום/לילה">🌙</button>
+    </div>
+  </header>
+
+  <!-- HOME -->
+  <section id="screen-home" class="screen">
+    <h2 class="section" data-i="whatToday">מה עושים היום?</h2>
+    <div class="tiles">
+      <div class="tile" data-go="record"><span class="em">🔴</span><span class="t" data-i="tRecord">הקלטה</span><span class="s" data-i="tRecordS">מסך · קול · שניהם</span></div>
+      <div class="tile" data-go="editor"><span class="em">✂️</span><span class="t" data-i="tEdit">עריכת אודיו</span><span class="s" data-i="tEditS">גזירה · חיבור</span></div>
+      <div class="tile" data-go="convert"><span class="em">🔄</span><span class="t" data-i="tConvert">המרת קבצים</span><span class="s" data-i="tConvertS">כל פורמט</span></div>
+      <div class="tile" data-go="library"><span class="em">📚</span><span class="t" data-i="tLib">הספרייה שלי</span><span class="s" data-i="tLibS">הקלטות שמורות</span></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <b data-i="quickTitle">טיפ מהיר</b>
+      <div class="hint" data-i="quickTip">כדי להקליט שיר מ-Suno: בחר "הקלט אודיו מהמחשב", בחר את הטאב של Suno, נגן את השיר, ואז עצור. הקטע יופיע בספרייה — משם אפשר לחתוך, לחבר, ולייצא ל-MP3.</div>
+    </div>
+  </section>
+
+  <!-- RECORD -->
+  <section id="screen-record" class="screen hide">
+    <h2 class="section" data-i="recMode">מה להקליט?</h2>
+    <div class="card">
+      <div class="seg" id="modeSeg">
+        <button data-mode="audio" class="on" data-i="mAudio">🎵 אודיו מהמחשב</button>
+        <button data-mode="video" data-i="mVideo">🎥 וידאו בלבד</button>
+        <button data-mode="both" data-i="mBoth">🎬 וידאו + קול</button>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="micToggle">
+        <span data-i="addMic">להוסיף גם מיקרופון (הקול שלך)</span>
+      </div>
+      <div class="hint" id="modeHint" data-i="hintAudio">יופיע חלון לבחירת מקור — בחר את הטאב/החלון עם הקול, וסמן "שתף אודיו". הווידאו לא נשמר במצב זה, רק הקול.</div>
+
+      <div id="recStage" style="margin-top:14px">
+        <div class="timer" id="recTimer">00:00</div>
+        <div class="row">
+          <button class="btn" id="startBtn" data-i="startRec">● התחל הקלטה</button>
+        </div>
+        <div class="row hide" id="recControls">
+          <button class="btn ghost sm" id="pauseBtn" style="flex:1" data-i="pause">⏸ השהה</button>
+          <button class="btn red sm" id="stopBtn" style="flex:2" data-i="stop">■ עצור ושמור</button>
+        </div>
+      </div>
+      <video class="prev hide" id="livePrev" muted></video>
+    </div>
+
+    <div class="card">
+      <b data-i="screenshotT">📸 צילום מסך</b>
+      <div class="hint" data-i="screenshotH">לוכד תמונת סטילס של המסך (ללא קול). נשמר כ-PNG.</div>
+      <button class="btn ghost" id="shotBtn" style="margin-top:10px" data-i="takeShot">📸 צלם מסך</button>
+    </div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section id="screen-library" class="screen hide">
+    <h2 class="section" data-i="myLib">הספרייה שלי</h2>
+    <div id="libList"></div>
+  </section>
+
+  <!-- EDITOR -->
+  <section id="screen-editor" class="screen hide">
+    <h2 class="section" data-i="audioEditor">עורך אודיו</h2>
+    <div class="card" id="editorEmpty">
+      <div class="empty"><span class="em">✂️</span><span data-i="editorPick">בחר קטע אודיו לעריכה — מהספרייה, או טען קובץ מהמחשב.</span></div>
+      <button class="btn" id="edLoadFile" data-i="loadFile">📂 טען קובץ אודיו</button>
+      <div class="hint" data-i="editorHint">אפשר גם ללכת לספרייה וללחוץ ✂️ על הקלטה.</div>
+    </div>
+
+    <div id="editorMain" class="hide">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <b id="edName">—</b>
+          <button class="mini" id="edClose" title="סגור">✕</button>
+        </div>
+        <canvas class="wave" id="waveC"></canvas>
+        <div class="hint" data-i="waveHint">גרור את הידיות הזהובות כדי לבחור קטע. הקו האדום = מיקום הנגינה.</div>
+        <div class="row tight" style="margin-top:10px">
+          <button class="btn ghost sm" id="edPlay" style="flex:1">▶︎ <span data-i="playSel">נגן בחירה</span></button>
+          <button class="btn ghost sm" id="edPlayAll" style="flex:1">⏯ <span data-i="playAll">נגן הכל</span></button>
+        </div>
+        <div class="row tight" style="margin-top:6px">
+          <button class="btn ghost sm" id="edTrim" style="flex:1">✂️ <span data-i="trimTo">גזור לבחירה</span></button>
+          <button class="btn ghost sm" id="edDelSel" style="flex:1">🗑 <span data-i="delSel">מחק בחירה</span></button>
+          <button class="btn ghost sm" id="edSplit" style="flex:1">⎇ <span data-i="split">פצל כאן</span></button>
+        </div>
+      </div>
+
+      <div class="card">
+        <b data-i="clipsT">הקטעים (לפי סדר)</b>
+        <div class="hint" data-i="clipsH">התוצאה = כל הקטעים מחוברים לפי הסדר. אפשר להוסיף עוד, לסדר מחדש ולמחוק.</div>
+        <div id="clipList" style="margin-top:10px"></div>
+        <button class="btn ghost sm" id="edAddClip" style="margin-top:6px" data-i="addClip">➕ הוסף קטע (חיבור)</button>
+      </div>
+
+      <div class="card">
+        <b data-i="exportT">ייצוא</b>
+        <label class="field" data-i="exportFmt">פורמט</label>
+        <div class="seg" id="expSeg">
+          <button data-fmt="mp3" class="on">MP3</button>
+          <button data-fmt="wav">WAV</button>
+        </div>
+        <button class="btn" id="edExport" style="margin-top:8px" data-i="exportBtn">⬇️ ייצא ושמור</button>
+        <div class="prog hide" id="edProg"><div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONVERT -->
+  <section id="screen-convert" class="screen hide">
+    <h2 class="section" data-i="converter">ממיר קבצים</h2>
+    <div class="card">
+      <div class="hint" data-i="convIntro">להמרת אודיו (MP3/WAV) ההמרה מיידית ומקומית. להמרות מתקדמות (וידאו, M4A, OGG, FLAC, MP4↔WebM) נטען מנוע ffmpeg בפעם הראשונה — זה כבד ולוקח רגע, אבל אחר כך זה מהיר.</div>
+      <button class="btn" id="convPick" style="margin-top:12px" data-i="convPickBtn">📂 בחר קובץ להמרה</button>
+      <div id="convInfo" class="hide" style="margin-top:12px">
+        <div class="lib-item"><span class="kind" id="convKind">🎵</span><div class="meta"><div class="nm" id="convFname">—</div><div class="sub" id="convSize"></div></div></div>
+        <label class="field" data-i="convTo">להמיר אל</label>
+        <select id="convFmt"></select>
+        <button class="btn" id="convRun" style="margin-top:12px" data-i="convRunBtn">🔄 המר</button>
+        <div class="prog hide" id="convProg"><div></div></div>
+        <div class="hint" id="convStatus"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="screen-settings" class="screen hide">
+    <h2 class="section" data-i="settings">הגדרות</h2>
+    <div class="card">
+      <label class="field" data-i="yourName">השם שלך</label>
+      <input type="text" id="setName" placeholder="—">
+      <label class="field" data-i="language">שפה</label>
+      <div class="seg" id="langSeg">
+        <button data-lang="he" class="on">עברית</button>
+        <button data-lang="en">English</button>
+      </div>
+      <label class="field" data-i="theme">מצב תצוגה</label>
+      <div class="seg" id="themeSeg">
+        <button data-th="night" class="on" data-i="night">🌙 לילה</button>
+        <button data-th="day" data-i="day">☀️ יום</button>
+      </div>
+    </div>
+    <div class="card">
+      <b data-i="dataT">נתונים</b>
+      <div class="hint" data-i="dataH">ההקלטות נשמרות רק במכשיר שלך (בדפדפן). שום דבר לא עולה לשרת.</div>
+      <button class="btn red ghost" id="clearAll" style="margin-top:10px;color:var(--red);border-color:var(--red)" data-i="clearData">🗑 מחק את כל ההקלטות</button>
+    </div>
+    <div class="card">
+      <b>אולפן AppNest <span class="badge">v1.0</span></b>
+      <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
+    </div>
+  </section>
+</div>
+
+<nav class="tab">
+  <button data-go="home" class="on"><span class="ic">🏠</span><span data-i="navHome">בית</span></button>
+  <button data-go="record"><span class="ic">🔴</span><span data-i="navRec">הקלטה</span></button>
+  <button data-go="editor"><span class="ic">✂️</span><span data-i="navEdit">עריכה</span></button>
+  <button data-go="library"><span class="ic">📚</span><span data-i="navLib">ספרייה</span></button>
+  <button data-go="settings"><span class="ic">⚙️</span><span data-i="navSet">הגדרות</span></button>
+</nav>
+
+<div class="toast hide" id="toast"><div></div></div>
+
+<script>
+/* ============ AppNest Studio — vanilla single-file ============ */
+const PREFIX='studio_';
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+/* ---------- i18n ---------- */
+const I18N={
+  he:{}, // Hebrew is the default written in HTML via data-i defaults; we keep he empty->use inline
+  en:{
+    whatToday:"What are we doing today?",
+    tRecord:"Record", tRecordS:"Screen · Audio · Both",
+    tEdit:"Edit audio", tEditS:"Trim · Join",
+    tConvert:"Convert files", tConvertS:"Any format",
+    tLib:"My library", tLibS:"Saved recordings",
+    quickTitle:"Quick tip",
+    quickTip:"To record a Suno song: choose \"Record computer audio\", pick the Suno tab, play the song, then stop. It appears in your library — from there you can trim, join and export to MP3.",
+    recMode:"What to record?",
+    mAudio:"🎵 Computer audio", mVideo:"🎥 Video only", mBoth:"🎬 Video + sound",
+    addMic:"Also add microphone (your voice)",
+    hintAudio:"A picker will open — choose the tab/window with the sound and tick \"Share audio\". Video isn't saved in this mode, only the sound.",
+    hintVideo:"Records the screen with no sound. A picker will open to choose what to capture.",
+    hintBoth:"Records screen + system sound. In the picker, tick \"Share audio\".",
+    startRec:"● Start recording", pause:"⏸ Pause", resume:"▶︎ Resume", stop:"■ Stop & save",
+    screenshotT:"📸 Screenshot", screenshotH:"Captures a still image of the screen (no sound). Saved as PNG.",
+    takeShot:"📸 Capture screen",
+    myLib:"My library",
+    audioEditor:"Audio editor",
+    editorPick:"Pick an audio clip to edit — from the library, or load a file from your computer.",
+    loadFile:"📂 Load audio file",
+    editorHint:"You can also go to the library and tap ✂️ on a recording.",
+    waveHint:"Drag the gold handles to select a range. The red line = playback position.",
+    playSel:"Play selection", playAll:"Play all",
+    trimTo:"Trim to selection", delSel:"Delete selection", split:"Split here",
+    clipsT:"Clips (in order)",
+    clipsH:"The result = all clips joined in order. You can add more, reorder and delete.",
+    addClip:"➕ Add clip (join)",
+    exportT:"Export", exportFmt:"Format", exportBtn:"⬇️ Export & save",
+    converter:"File converter",
+    convIntro:"For audio (MP3/WAV) conversion is instant and local. For advanced conversions (video, M4A, OGG, FLAC, MP4↔WebM) an ffmpeg engine loads the first time — it's heavy and takes a moment, then it's fast.",
+    convPickBtn:"📂 Pick a file to convert",
+    convTo:"Convert to", convRunBtn:"🔄 Convert",
+    settings:"Settings", yourName:"Your name", language:"Language", theme:"Display mode",
+    night:"🌙 Night", day:"☀️ Day",
+    dataT:"Data", dataH:"Recordings are stored only on your device (in the browser). Nothing is uploaded.",
+    clearData:"🗑 Delete all recordings",
+    aboutTxt:"A local recording & editing tool — screen/audio capture, trim, join and format conversion. Part of the AppNest family. Everything runs in your browser, nothing is uploaded.",
+    navHome:"Home", navRec:"Record", navEdit:"Edit", navLib:"Library", navSet:"Settings"
+  }
+};
+// snapshot Hebrew defaults from DOM once
+const heDefaults={};
+$$('[data-i]').forEach(el=>{heDefaults[el.dataset.i]=el.innerHTML;});
+I18N.he=heDefaults;
+
+let state={
+  lang:localStorage.getItem(PREFIX+'lang')||'he',
+  theme:localStorage.getItem(PREFIX+'theme')||'night',
+  name:localStorage.getItem(PREFIX+'name')||''
+};
+
+function applyLang(){
+  const L=I18N[state.lang]||I18N.he;
+  document.documentElement.lang=state.lang;
+  document.documentElement.dir=(state.lang==='he'||state.lang==='ar')?'rtl':'ltr';
+  $$('[data-i]').forEach(el=>{ if(L[el.dataset.i]!=null) el.innerHTML=L[el.dataset.i]; });
+  $('#langBtn').textContent=state.lang==='he'?'EN':'עב';
+  updateModeHint();
+  renderLibrary();
+}
+function t(key){return (I18N[state.lang]&&I18N[state.lang][key])||I18N.he[key]||key;}
+function applyTheme(){
+  document.body.dataset.theme=state.theme;
+  $('#themeBtn').textContent=state.theme==='night'?'🌙':'☀️';
+  $('meta[name=theme-color]').setAttribute('content',state.theme==='night'?'#0a0a0a':'#f4f2ec');
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg){
+  const t=$('#toast'); t.querySelector('div').textContent=msg; t.classList.remove('hide');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hide'),2600);
+}
+
+/* ---------- navigation ---------- */
+function go(name){
+  $$('.screen').forEach(s=>s.classList.add('hide'));
+  const el=$('#screen-'+name); if(el) el.classList.remove('hide');
+  $$('nav.tab button').forEach(b=>b.classList.toggle('on',b.dataset.go===name));
+  if(name==='library') renderLibrary();
+  window.scrollTo(0,0);
+}
+$$('[data-go]').forEach(el=>el.addEventListener('click',()=>go(el.dataset.go)));
+
+/* ---------- IndexedDB (recordings persist across refresh) ---------- */
+let db;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(PREFIX+'db',1);
+    r.onupgradeneeded=e=>{const d=e.target.result; if(!d.objectStoreNames.contains('rec')) d.createObjectStore('rec',{keyPath:'id'});};
+    r.onsuccess=e=>{db=e.target.result;res();};
+    r.onerror=e=>rej(e);
+  });
+}
+function dbPut(item){return new Promise((res,rej)=>{const tx=db.transaction('rec','readwrite');tx.objectStore('rec').put(item);tx.oncomplete=res;tx.onerror=rej;});}
+function dbAll(){return new Promise((res,rej)=>{const tx=db.transaction('rec','readonly');const rq=tx.objectStore('rec').getAll();rq.onsuccess=()=>res(rq.result||[]);rq.onerror=rej;});}
+function dbGet(id){return new Promise((res,rej)=>{const tx=db.transaction('rec','readonly');const rq=tx.objectStore('rec').get(id);rq.onsuccess=()=>res(rq.result);rq.onerror=rej;});}
+function dbDel(id){return new Promise((res,rej)=>{const tx=db.transaction('rec','readwrite');tx.objectStore('rec').delete(id);tx.oncomplete=res;tx.onerror=rej;});}
+function dbClear(){return new Promise((res,rej)=>{const tx=db.transaction('rec','readwrite');tx.objectStore('rec').clear();tx.oncomplete=res;tx.onerror=rej;});}
+
+/* ---------- helpers ---------- */
+function fmtTime(sec){sec=Math.max(0,Math.floor(sec));const m=String(Math.floor(sec/60)).padStart(2,'0');const s=String(sec%60).padStart(2,'0');return m+':'+s;}
+function fmtBytes(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(0)+' KB';return (b/1048576).toFixed(1)+' MB';}
+function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000);}
+function kindEmoji(k){return k==='video'?'🎥':k==='image'?'📸':'🎵';}
+function pickMime(kind){
+  const vids=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  const auds=['audio/webm;codecs=opus','audio/webm','audio/ogg','audio/mp4'];
+  const list=kind==='audio'?auds:vids;
+  for(const m of list){ if(window.MediaRecorder&&MediaRecorder.isTypeSupported(m)) return m; }
+  return '';
+}
+
+/* ============ RECORDING ============ */
+let recMode='audio', mediaRecorder=null, recChunks=[], recStream=null, recTimerInt=null, recStart=0, recPausedAt=0, recPausedTotal=0, mixCtx=null;
+
+$$('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{
+  $$('#modeSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  recMode=b.dataset.mode; updateModeHint();
+}));
+function updateModeHint(){
+  const map={audio:'hintAudio',video:'hintVideo',both:'hintBoth'};
+  $('#modeHint').innerHTML=t(map[recMode]||'hintAudio');
+}
+
+async function startRecording(){
+  recChunks=[];
+  try{
+    let stream;
+    const wantMic=$('#micToggle').checked;
+    if(recMode==='video'){
+      stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+    }else{
+      // audio or both -> need display media WITH audio to grab system sound
+      const disp=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+      if(recMode==='audio'){
+        // keep only audio: build a stream from the display audio (+optional mic)
+        const audioTracks=disp.getAudioTracks();
+        if(audioTracks.length===0){
+          disp.getTracks().forEach(t=>t.stop());
+          toast(t('noAudioShared')||'לא שותף אודיו — סמן "שתף אודיו" בחלון הבחירה'); 
+          return;
+        }
+        stream=await buildAudioStream(disp, wantMic);
+        // stop the (unused) video track from display
+        disp.getVideoTracks().forEach(t=>t.stop());
+      }else{
+        // both: keep video from display, mix display-audio + optional mic
+        const mixed=await buildAudioStream(disp, wantMic);
+        stream=new MediaStream([...disp.getVideoTracks(), ...mixed.getAudioTracks()]);
+      }
+    }
+    // for video/both with mic, add mic if requested
+    if(recMode==='video' && wantMic){
+      try{const mic=await navigator.mediaDevices.getUserMedia({audio:true});
+        stream=new MediaStream([...stream.getVideoTracks(), ...mic.getAudioTracks()]);
+      }catch(e){}
+    }
+    recStream=stream;
+    const kind=(recMode==='audio')?'audio':'video';
+    const mime=pickMime(kind);
+    mediaRecorder=new MediaRecorder(stream, mime?{mimeType:mime}:undefined);
+    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};
+    mediaRecorder.onstop=finalizeRecording;
+    mediaRecorder.start(200);
+
+    // if the user stops sharing via the browser bar
+    stream.getVideoTracks().concat(stream.getAudioTracks()).forEach(tr=>{
+      tr.addEventListener('ended',()=>{ if(mediaRecorder&&mediaRecorder.state!=='inactive') stopRecording(); });
+    });
+
+    // live preview for video modes
+    if(kind==='video'){ const v=$('#livePrev'); v.srcObject=stream; v.classList.remove('hide'); v.play().catch(()=>{}); }
+
+    recStart=Date.now(); recPausedTotal=0;
+    $('#startBtn').classList.add('hide'); $('#recControls').classList.remove('hide');
+    tickTimer(); recTimerInt=setInterval(tickTimer,500);
+  }catch(err){
+    console.error(err);
+    if(err&&err.name==='NotAllowedError') toast(t('cancelled')||'ההקלטה בוטלה');
+    else toast((t('recErr')||'שגיאת הקלטה')+': '+(err.message||err.name||''));
+  }
+}
+async function buildAudioStream(disp, wantMic){
+  mixCtx=new (window.AudioContext||window.webkitAudioContext)();
+  const dest=mixCtx.createMediaStreamDestination();
+  const src1=mixCtx.createMediaStreamSource(new MediaStream(disp.getAudioTracks()));
+  src1.connect(dest);
+  if(wantMic){
+    try{ const mic=await navigator.mediaDevices.getUserMedia({audio:true});
+      const src2=mixCtx.createMediaStreamSource(mic); src2.connect(dest);
+    }catch(e){ toast('לא ניתן להוסיף מיקרופון'); }
+  }
+  return dest.stream;
+}
+function tickTimer(){
+  if(!mediaRecorder) return;
+  let elapsed;
+  if(mediaRecorder.state==='paused'){ elapsed=(recPausedAt-recStart-recPausedTotal); }
+  else { elapsed=(Date.now()-recStart-recPausedTotal); }
+  $('#recTimer').innerHTML=(mediaRecorder.state==='recording'?'<span class="dot"></span>':'')+fmtTime(elapsed/1000);
+}
+$('#startBtn').addEventListener('click',startRecording);
+$('#pauseBtn').addEventListener('click',()=>{
+  if(!mediaRecorder)return;
+  if(mediaRecorder.state==='recording'){ mediaRecorder.pause(); recPausedAt=Date.now(); $('#pauseBtn').innerHTML=t('resume'); }
+  else if(mediaRecorder.state==='paused'){ recPausedTotal+=Date.now()-recPausedAt; mediaRecorder.resume(); $('#pauseBtn').innerHTML=t('pause'); }
+  tickTimer();
+});
+$('#stopBtn').addEventListener('click',stopRecording);
+function stopRecording(){ if(mediaRecorder&&mediaRecorder.state!=='inactive') mediaRecorder.stop(); }
+
+async function finalizeRecording(){
+  clearInterval(recTimerInt); recTimerInt=null;
+  const kind=(recMode==='audio')?'audio':'video';
+  const type=(recChunks[0]&&recChunks[0].type)||(kind==='audio'?'audio/webm':'video/webm');
+  const blob=new Blob(recChunks,{type});
+  // cleanup
+  if(recStream) recStream.getTracks().forEach(t=>t.stop());
+  if(mixCtx){try{mixCtx.close();}catch(e){} mixCtx=null;}
+  const v=$('#livePrev'); v.srcObject=null; v.classList.add('hide');
+  $('#startBtn').classList.remove('hide'); $('#recControls').classList.add('hide');
+  $('#recTimer').textContent='00:00'; $('#pauseBtn').innerHTML=t('pause');
+
+  const now=new Date();
+  const item={ id:'r'+Date.now(), kind, type, blob, size:blob.size,
+    name:(kind==='audio'?'הקלטת קול ':'הקלטת מסך ')+now.toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    created:now.getTime() };
+  try{ await dbPut(item); toast(t('savedLib')||'נשמר בספרייה ✓'); }
+  catch(e){ toast('שגיאת שמירה'); }
+  go('library');
+}
+
+/* screenshot */
+$('#shotBtn').addEventListener('click',async()=>{
+  try{
+    const s=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+    const track=s.getVideoTracks()[0];
+    // let the frame settle
+    await new Promise(r=>setTimeout(r,300));
+    const v=document.createElement('video'); v.srcObject=s; await v.play();
+    await new Promise(r=>setTimeout(r,120));
+    const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0);
+    s.getTracks().forEach(t=>t.stop());
+    c.toBlob(async(blob)=>{
+      const now=new Date();
+      const item={id:'s'+Date.now(),kind:'image',type:'image/png',blob,size:blob.size,
+        name:'צילום מסך '+now.toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),created:now.getTime()};
+      await dbPut(item); toast('הצילום נשמר ✓'); go('library');
+    },'image/png');
+  }catch(e){ if(e.name!=='NotAllowedError') toast('שגיאה בצילום'); }
+});
+
+/* ============ LIBRARY ============ */
+async function renderLibrary(){
+  const list=$('#libList'); if(!list) return;
+  let items=[]; try{ items=await dbAll(); }catch(e){}
+  items.sort((a,b)=>b.created-a.created);
+  if(!items.length){ list.innerHTML=`<div class="card"><div class="empty"><span class="em">📭</span>${state.lang==='he'?'עדיין אין הקלטות. לך ל"הקלטה" כדי להתחיל.':'No recordings yet. Go to "Record" to start.'}</div></div>`; return; }
+  list.innerHTML='';
+  items.forEach(it=>{
+    const el=document.createElement('div'); el.className='lib-item';
+    const editBtn=it.kind==='audio'?`<button class="mini" data-act="edit" title="ערוך">✂️</button>`:'';
+    el.innerHTML=`<span class="kind">${kindEmoji(it.kind)}</span>
+      <div class="meta"><div class="nm">${it.name}</div><div class="sub">${fmtBytes(it.size)}</div></div>
+      <button class="mini" data-act="play" title="נגן">▶︎</button>
+      ${editBtn}
+      <button class="mini" data-act="dl" title="הורד">⬇️</button>
+      <button class="mini" data-act="del" title="מחק">🗑</button>`;
+    el.querySelector('[data-act=play]').addEventListener('click',()=>previewItem(it,el));
+    el.querySelector('[data-act=dl]').addEventListener('click',()=>{
+      const ext=it.kind==='image'?'png':(it.kind==='audio'?'webm':'webm');
+      download(it.blob,it.name.replace(/[^\w\u0590-\u05FF]+/g,'_')+'.'+ext);
+    });
+    el.querySelector('[data-act=del]').addEventListener('click',async()=>{ await dbDel(it.id); renderLibrary(); toast('נמחק'); });
+    const eb=el.querySelector('[data-act=edit]'); if(eb) eb.addEventListener('click',()=>loadIntoEditor(it));
+    list.appendChild(el);
+  });
+}
+function previewItem(it,el){
+  const sib=el.nextElementSibling;
+  if(sib&&sib.classList.contains('prev-wrap')){ sib.remove(); return; } // toggle off
+  const wrap=document.createElement('div'); wrap.className='prev-wrap'; wrap.style.marginBottom='8px';
+  const url=URL.createObjectURL(it.blob);
+  if(it.kind==='image'){ wrap.innerHTML=`<img src="${url}" style="width:100%;border-radius:12px">`; }
+  else if(it.kind==='audio'){ wrap.innerHTML=`<audio class="prev" controls autoplay src="${url}"></audio>`; }
+  else { wrap.innerHTML=`<video class="prev" controls autoplay src="${url}"></video>`; }
+  el.after(wrap);
+}
+
+/* ============ AUDIO EDITOR ============ */
+let ac=null; // audio context for editor
+function actx(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); return ac; }
+let edClips=[]; // each: {buffer, start, end, name}  (in seconds within its buffer)
+let edSel={a:0,b:0}; // selection in the FIRST clip's timeline (we edit clip[0] region ops on the merged? -> we operate on a single active buffer)
+let edActive=null;   // {buffer} currently shown in waveform (the working buffer)
+let edPlaySrc=null;
+
+$('#edLoadFile').addEventListener('click',()=>pickAudioFile(f=>loadFileIntoEditor(f)));
+$('#edAddClip').addEventListener('click',()=>pickAudioFile(async f=>{
+  const buf=await decodeFile(f);
+  edClips.push({buffer:buf,start:0,end:buf.duration,name:f.name});
+  renderClips(); toast('קטע נוסף ✓');
+}));
+$('#edClose').addEventListener('click',()=>{ stopEdPlay(); $('#editorMain').classList.add('hide'); $('#editorEmpty').classList.remove('hide'); });
+
+function pickAudioFile(cb){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='audio/*,video/*';
+  inp.onchange=()=>{ if(inp.files[0]) cb(inp.files[0]); }; inp.click();
+}
+async function decodeFile(file){
+  const buf=await file.arrayBuffer();
+  return await actx().decodeAudioData(buf);
+}
+async function loadFileIntoEditor(file){
+  try{ toast('טוען…'); const buf=await decodeFile(file); startEditor(buf,file.name); }
+  catch(e){ toast('לא ניתן לפענח את הקובץ'); }
+}
+async function loadIntoEditor(item){
+  try{ toast('טוען…'); const ab=await item.blob.arrayBuffer(); const buf=await actx().decodeAudioData(ab); startEditor(buf,item.name); go('editor'); }
+  catch(e){ toast('לא ניתן לפענח את ההקלטה'); }
+}
+function startEditor(buffer,name){
+  edClips=[{buffer,start:0,end:buffer.duration,name}];
+  edActive=edClips[0];
+  edSel={a:0,b:buffer.duration};
+  $('#editorEmpty').classList.add('hide'); $('#editorMain').classList.remove('hide');
+  $('#edName').textContent=name;
+  drawWave(); renderClips();
+}
+
+/* waveform on clip[0] (the active editing buffer = merged? -> we edit the first clip; others are appended for join) */
+const waveC=$('#waveC'); const wctx=waveC.getContext('2d');
+function drawWave(){
+  if(!edActive) return;
+  const dpr=window.devicePixelRatio||1;
+  const w=waveC.clientWidth, h=120;
+  waveC.width=w*dpr; waveC.height=h*dpr; wctx.setTransform(dpr,0,0,dpr,0,0);
+  const cs=getComputedStyle(document.body);
+  wctx.clearRect(0,0,w,h);
+  const buf=edActive.buffer; const data=buf.getChannelData(0); const N=data.length;
+  const mid=h/2;
+  wctx.strokeStyle=cs.getPropertyValue('--muted').trim()||'#888'; wctx.globalAlpha=.9; wctx.lineWidth=1;
+  wctx.beginPath();
+  for(let x=0;x<w;x++){
+    const i0=Math.floor(x/w*N), i1=Math.floor((x+1)/w*N);
+    let mn=1,mx=-1;
+    for(let i=i0;i<i1;i++){ const v=data[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
+    wctx.moveTo(x+.5,mid+mn*mid*.92); wctx.lineTo(x+.5,mid+mx*mid*.92);
+  }
+  wctx.stroke(); wctx.globalAlpha=1;
+  // selection
+  const dur=buf.duration;
+  const xa=edSel.a/dur*w, xb=edSel.b/dur*w;
+  const gold=cs.getPropertyValue('--gold').trim()||'#e8b923';
+  wctx.fillStyle=gold; wctx.globalAlpha=.14; wctx.fillRect(Math.min(xa,xb),0,Math.abs(xb-xa),h); wctx.globalAlpha=1;
+  wctx.fillStyle=gold; wctx.fillRect(xa-2,0,4,h); wctx.fillRect(xb-2,0,4,h);
+  wctx.beginPath();wctx.arc(xa,10,7,0,7);wctx.arc(xb,110,7,0,7);wctx.fill();
+  // playhead
+  if(edPlayhead>=0){ const xp=edPlayhead/dur*w; wctx.strokeStyle='#e5484d'; wctx.lineWidth=2; wctx.beginPath(); wctx.moveTo(xp,0); wctx.lineTo(xp,h); wctx.stroke(); }
+}
+let edPlayhead=-1;
+// drag handles
+let dragging=null;
+function xToTime(clientX){
+  const r=waveC.getBoundingClientRect(); let x=clientX-r.left;
+  if(document.documentElement.dir==='rtl'){ /* canvas coords are LTR regardless */ }
+  x=Math.max(0,Math.min(r.width,x));
+  return x/r.width*edActive.buffer.duration;
+}
+function pointerDown(e){
+  if(!edActive)return;
+  const cx=e.touches?e.touches[0].clientX:e.clientX;
+  const time=xToTime(cx); const dur=edActive.buffer.duration;
+  const da=Math.abs(time-edSel.a), db=Math.abs(time-edSel.b);
+  if(da<db && da<dur*0.05) dragging='a';
+  else if(db<dur*0.05) dragging='b';
+  else { edSel.a=time; edSel.b=time; dragging='b'; }
+  drawWave();
+}
+function pointerMove(e){
+  if(!dragging||!edActive)return;
+  const cx=e.touches?e.touches[0].clientX:e.clientX;
+  let time=xToTime(cx);
+  edSel[dragging]=time; drawWave();
+}
+function pointerUp(){ if(dragging){ if(edSel.a>edSel.b){const tmp=edSel.a;edSel.a=edSel.b;edSel.b=tmp;} dragging=null; drawWave(); } }
+waveC.addEventListener('mousedown',pointerDown); window.addEventListener('mousemove',pointerMove); window.addEventListener('mouseup',pointerUp);
+waveC.addEventListener('touchstart',e=>{pointerDown(e);},{passive:true}); waveC.addEventListener('touchmove',e=>{pointerMove(e);e.preventDefault();},{passive:false}); waveC.addEventListener('touchend',pointerUp);
+
+/* buffer ops */
+function sliceBuffer(buffer,from,to){
+  const ctx=actx(); const rate=buffer.sampleRate;
+  const s=Math.max(0,Math.floor(from*rate)), en=Math.min(buffer.length,Math.floor(to*rate));
+  const len=Math.max(1,en-s);
+  const out=ctx.createBuffer(buffer.numberOfChannels,len,rate);
+  for(let ch=0;ch<buffer.numberOfChannels;ch++){ out.getChannelData(ch).set(buffer.getChannelData(ch).subarray(s,en)); }
+  return out;
+}
+function concatBuffers(buffers){
+  const ctx=actx(); const ch=Math.max(...buffers.map(b=>b.numberOfChannels));
+  const rate=buffers[0].sampleRate;
+  const total=buffers.reduce((a,b)=>a+b.length,0);
+  const out=ctx.createBuffer(ch,total,rate);
+  for(let c=0;c<ch;c++){ let off=0; const od=out.getChannelData(c);
+    buffers.forEach(b=>{ const bd=b.getChannelData(Math.min(c,b.numberOfChannels-1)); od.set(bd,off); off+=b.length; }); }
+  return out;
+}
+function deleteRegion(buffer,from,to){
+  const a=sliceBuffer(buffer,0,from), b=sliceBuffer(buffer,to,buffer.duration);
+  if(from<=0) return b; if(to>=buffer.duration) return a;
+  return concatBuffers([a,b]);
+}
+
+$('#edTrim').addEventListener('click',()=>{
+  if(!edActive)return; const b=sliceBuffer(edActive.buffer,edSel.a,edSel.b);
+  edActive.buffer=b; edClips[0]=edActive; edSel={a:0,b:b.duration}; edPlayhead=-1; drawWave(); renderClips(); toast('נגזר לבחירה ✓');
+});
+$('#edDelSel').addEventListener('click',()=>{
+  if(!edActive)return; if(edSel.b-edSel.a<0.01){toast('אין בחירה');return;}
+  const b=deleteRegion(edActive.buffer,edSel.a,edSel.b);
+  edActive.buffer=b; edClips[0]=edActive; edSel={a:0,b:0}; edPlayhead=-1; drawWave(); renderClips(); toast('הקטע נמחק ✓');
+});
+$('#edSplit').addEventListener('click',()=>{
+  if(!edActive)return; const p=edSel.b; if(p<=0||p>=edActive.buffer.duration){toast('הזז את הקו לנקודת הפיצול');return;}
+  const left=sliceBuffer(edActive.buffer,0,p), right=sliceBuffer(edActive.buffer,p,edActive.buffer.duration);
+  edClips.splice(0,1,{buffer:left,start:0,end:left.duration,name:'חלק 1'},{buffer:right,start:0,end:right.duration,name:'חלק 2'});
+  edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; drawWave(); renderClips(); toast('פוצל לשני קטעים ✓');
+});
+
+/* play */
+function stopEdPlay(){ if(edPlaySrc){try{edPlaySrc.stop();}catch(e){} edPlaySrc=null;} edPlayhead=-1; if(edPlayTimer)cancelAnimationFrame(edPlayTimer); drawWave(); }
+let edPlayTimer;
+function playBuffer(buffer,fromSec){
+  stopEdPlay(); const ctx=actx(); if(ctx.state==='suspended')ctx.resume();
+  const src=ctx.createBufferSource(); src.buffer=buffer; src.connect(ctx.destination);
+  const startAt=ctx.currentTime; src.start(0,fromSec||0); edPlaySrc=src;
+  const base=fromSec||0;
+  const loop=()=>{ edPlayhead=base+(ctx.currentTime-startAt); if(edPlayhead>=buffer.duration){stopEdPlay();return;} drawWave(); edPlayTimer=requestAnimationFrame(loop); };
+  loop();
+  src.onended=()=>{ if(edPlaySrc===src){stopEdPlay();} };
+}
+$('#edPlay').addEventListener('click',()=>{ if(!edActive)return; const sel=sliceBuffer(edActive.buffer,edSel.a,edSel.b); if(sel.duration<0.02){toast('בחר קטע');return;} playBuffer(sel,0); });
+$('#edPlayAll').addEventListener('click',()=>{ if(!edClips.length)return; if(edPlaySrc){stopEdPlay();return;} const merged=concatBuffers(edClips.map(c=>c.buffer)); playBuffer(merged,0); });
+
+/* clips list */
+function renderClips(){
+  const box=$('#clipList'); box.innerHTML='';
+  edClips.forEach((c,i)=>{
+    const el=document.createElement('div'); el.className='clip';
+    el.innerHTML=`<span>${i+1}.</span><span class="ci">${c.name||('קטע '+(i+1))} · ${fmtTime(c.buffer.duration)}</span>
+      <button class="mini" data-a="up" ${i===0?'disabled':''}>↑</button>
+      <button class="mini" data-a="dn" ${i===edClips.length-1?'disabled':''}>↓</button>
+      <button class="mini" data-a="pl">▶︎</button>
+      <button class="mini" data-a="rm" ${edClips.length<=1?'disabled':''}>🗑</button>`;
+    el.querySelector('[data-a=up]').addEventListener('click',()=>{ if(i>0){[edClips[i-1],edClips[i]]=[edClips[i],edClips[i-1]]; edActive=edClips[0]; renderClips(); drawWave();} });
+    el.querySelector('[data-a=dn]').addEventListener('click',()=>{ if(i<edClips.length-1){[edClips[i+1],edClips[i]]=[edClips[i],edClips[i+1]]; edActive=edClips[0]; renderClips(); drawWave();} });
+    el.querySelector('[data-a=pl]').addEventListener('click',()=>playBuffer(c.buffer,0));
+    el.querySelector('[data-a=rm]').addEventListener('click',()=>{ if(edClips.length>1){edClips.splice(i,1); edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; renderClips(); drawWave();} });
+    box.appendChild(el);
+  });
+}
+
+/* export */
+let expFmt='mp3';
+$$('#expSeg button').forEach(b=>b.addEventListener('click',()=>{$$('#expSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');expFmt=b.dataset.fmt;}));
+$('#edExport').addEventListener('click',async()=>{
+  if(!edClips.length)return;
+  const prog=$('#edProg'); prog.classList.remove('hide'); prog.firstElementChild.style.width='15%';
+  try{
+    const merged=concatBuffers(edClips.map(c=>c.buffer));
+    let blob,ext;
+    if(expFmt==='wav'){ blob=encodeWAV(merged); ext='wav'; prog.firstElementChild.style.width='100%'; }
+    else{ blob=await encodeMP3(merged,p=>{prog.firstElementChild.style.width=(20+p*0.8)+'%';}); ext='mp3'; }
+    const nm=($('#edName').textContent||'edit').replace(/[^\w\u0590-\u05FF]+/g,'_');
+    download(blob,nm+'_edit.'+ext);
+    // also save to library
+    await dbPut({id:'e'+Date.now(),kind:'audio',type:blob.type,blob,size:blob.size,name:'ערוך: '+$('#edName').textContent,created:Date.now()});
+    toast('יוצא ונשמר בספרייה ✓');
+  }catch(e){ console.error(e); toast('שגיאת ייצוא'); }
+  setTimeout(()=>{prog.classList.add('hide');prog.firstElementChild.style.width='0%';},800);
+});
+
+/* WAV encoder */
+function encodeWAV(buffer){
+  const numCh=buffer.numberOfChannels, rate=buffer.sampleRate, len=buffer.length;
+  const bytesPerSample=2; const blockAlign=numCh*bytesPerSample;
+  const dataLen=len*blockAlign; const bufferAB=new ArrayBuffer(44+dataLen); const view=new DataView(bufferAB);
+  const wr=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
+  wr(0,'RIFF'); view.setUint32(4,36+dataLen,true); wr(8,'WAVE'); wr(12,'fmt '); view.setUint32(16,16,true);
+  view.setUint16(20,1,true); view.setUint16(22,numCh,true); view.setUint32(24,rate,true);
+  view.setUint32(28,rate*blockAlign,true); view.setUint16(32,blockAlign,true); view.setUint16(34,16,true);
+  wr(36,'data'); view.setUint32(40,dataLen,true);
+  let off=44; const chans=[]; for(let c=0;c<numCh;c++)chans.push(buffer.getChannelData(c));
+  for(let i=0;i<len;i++){ for(let c=0;c<numCh;c++){ let s=Math.max(-1,Math.min(1,chans[c][i])); view.setInt16(off,s<0?s*0x8000:s*0x7FFF,true); off+=2; } }
+  return new Blob([view],{type:'audio/wav'});
+}
+/* MP3 via lamejs (loaded on demand) */
+let lamePromise=null;
+function loadLame(){
+  if(window.lamejs) return Promise.resolve();
+  if(lamePromise) return lamePromise;
+  lamePromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';
+    s.onload=res; s.onerror=()=>rej(new Error('lame load failed'));
+    document.head.appendChild(s);
+  });
+  return lamePromise;
+}
+async function encodeMP3(buffer,onProg){
+  await loadLame();
+  const numCh=Math.min(2,buffer.numberOfChannels), rate=buffer.sampleRate;
+  const enc=new lamejs.Mp3Encoder(numCh,rate,192);
+  const L=buffer.getChannelData(0); const R=numCh>1?buffer.getChannelData(1):L;
+  const to16=(f)=>{const o=new Int16Array(f.length);for(let i=0;i<f.length;i++){let s=Math.max(-1,Math.min(1,f[i]));o[i]=s<0?s*0x8000:s*0x7FFF;}return o;};
+  const l16=to16(L), r16=numCh>1?to16(R):l16;
+  const block=1152; const out=[]; const total=l16.length;
+  for(let i=0;i<total;i+=block){
+    const ls=l16.subarray(i,i+block), rs=r16.subarray(i,i+block);
+    const mp3=numCh>1?enc.encodeBuffer(ls,rs):enc.encodeBuffer(ls);
+    if(mp3.length)out.push(mp3);
+    if(onProg && (i%(block*40)===0)) onProg(i/total);
+  }
+  const end=enc.flush(); if(end.length)out.push(end);
+  return new Blob(out,{type:'audio/mpeg'});
+}
+
+/* ============ CONVERTER ============ */
+let convFile=null, ffmpeg=null, ffmpegLoading=null;
+const AUDIO_OUT=['mp3','wav'];               // native path
+const FF_OUT=['mp3','wav','m4a','ogg','flac','aac','opus','mp4','webm','mkv','avi','mov','gif'];
+$('#convPick').addEventListener('click',()=>{
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='audio/*,video/*';
+  inp.onchange=()=>{ if(inp.files[0]) setConvFile(inp.files[0]); }; inp.click();
+});
+function setConvFile(f){
+  convFile=f; $('#convInfo').classList.remove('hide');
+  const isVid=f.type.startsWith('video');
+  $('#convKind').textContent=isVid?'🎥':'🎵';
+  $('#convFname').textContent=f.name; $('#convSize').textContent=fmtBytes(f.size);
+  const sel=$('#convFmt'); sel.innerHTML='';
+  FF_OUT.forEach(fmt=>{ const o=document.createElement('option'); o.value=fmt; o.textContent=fmt.toUpperCase()+(AUDIO_OUT.includes(fmt)&&!isVid?'  ·  מהיר':''); sel.appendChild(o); });
+  $('#convStatus').textContent='';
+}
+$('#convRun').addEventListener('click',runConvert);
+async function runConvert(){
+  if(!convFile)return;
+  const out=$('#convFmt').value;
+  const prog=$('#convProg'); const bar=prog.firstElementChild;
+  const isVid=convFile.type.startsWith('video');
+  // native fast path: audio input -> mp3/wav
+  if(!isVid && AUDIO_OUT.includes(out)){
+    try{
+      prog.classList.remove('hide'); bar.style.width='20%'; $('#convStatus').textContent='ממיר מקומית…';
+      const ab=await convFile.arrayBuffer(); const buf=await actx().decodeAudioData(ab.slice(0));
+      let blob; if(out==='wav'){blob=encodeWAV(buf);bar.style.width='100%';} else {blob=await encodeMP3(buf,p=>bar.style.width=(20+p*80)+'%');}
+      download(blob,convFile.name.replace(/\.[^.]+$/,'')+'.'+out);
+      $('#convStatus').textContent='הומר ונשמר ✓';
+      setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},800);
+      return;
+    }catch(e){ /* fall through to ffmpeg */ }
+  }
+  // ffmpeg path
+  try{
+    prog.classList.remove('hide'); bar.style.width='5%';
+    $('#convStatus').innerHTML='טוען מנוע המרה (בפעם הראשונה זה כבד — כ-30MB)…';
+    await loadFFmpeg(); bar.style.width='30%';
+    const {fetchFile}=ffmpegUtil;
+    const inName='in'+(convFile.name.match(/\.[^.]+$/)||['.dat'])[0];
+    const outName='out.'+out;
+    await ffmpeg.writeFile(inName, await fetchFile(convFile));
+    $('#convStatus').textContent='ממיר…'; bar.style.width='55%';
+    ffmpeg.on('progress',({progress})=>{ if(progress>0&&progress<=1) bar.style.width=(55+progress*40)+'%'; });
+    // when the target is an audio format, drop any video track (handles video->audio extraction too)
+    const audioTargets=['mp3','wav','m4a','ogg','flac','aac','opus'];
+    const args=audioTargets.includes(out) ? ['-i',inName,'-vn',outName] : ['-i',inName,outName];
+    await ffmpeg.exec(args);
+    const data=await ffmpeg.readFile(outName);
+    bar.style.width='100%';
+    const mimeMap={mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',ogg:'audio/ogg',flac:'audio/flac',aac:'audio/aac',opus:'audio/opus',mp4:'video/mp4',webm:'video/webm',mkv:'video/x-matroska',avi:'video/x-msvideo',mov:'video/quicktime',gif:'image/gif'};
+    const blob=new Blob([data.buffer],{type:mimeMap[out]||'application/octet-stream'});
+    download(blob,convFile.name.replace(/\.[^.]+$/,'')+'.'+out);
+    $('#convStatus').textContent='הומר ונשמר ✓';
+    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},900);
+  }catch(e){ console.error(e); $('#convStatus').textContent='שגיאת המרה: '+(e.message||e); prog.classList.add('hide'); }
+}
+let ffmpegUtil=null;
+async function loadFFmpeg(){
+  if(ffmpeg) return ffmpeg;
+  if(ffmpegLoading) return ffmpegLoading;
+  ffmpegLoading=(async()=>{
+    const core=await import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10');
+    ffmpegUtil=await import('https://esm.sh/@ffmpeg/util@0.12.1');
+    const {FFmpeg}=core; ffmpeg=new FFmpeg();
+    const base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    await ffmpeg.load({
+      coreURL: await ffmpegUtil.toBlobURL(base+'/ffmpeg-core.js','text/javascript'),
+      wasmURL: await ffmpegUtil.toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')
+    });
+    return ffmpeg;
+  })();
+  return ffmpegLoading;
+}
+
+/* ============ SETTINGS ============ */
+$('#setName').addEventListener('input',e=>{ state.name=e.target.value; localStorage.setItem(PREFIX+'name',state.name); });
+$$('#langSeg button').forEach(b=>b.addEventListener('click',()=>{ state.lang=b.dataset.lang; localStorage.setItem(PREFIX+'lang',state.lang); $$('#langSeg button').forEach(x=>x.classList.toggle('on',x===b)); applyLang(); }));
+$$('#themeSeg button').forEach(b=>b.addEventListener('click',()=>{ state.theme=b.dataset.th; localStorage.setItem(PREFIX+'theme',state.theme); $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x===b)); applyTheme(); }));
+$('#clearAll').addEventListener('click',async()=>{
+  if(!confirm(state.lang==='he'?'למחוק את כל ההקלטות? אי אפשר לשחזר.':'Delete all recordings? This cannot be undone.'))return;
+  await dbClear(); renderLibrary(); toast(state.lang==='he'?'נמחק הכל':'All cleared');
+});
+$('#langBtn').addEventListener('click',()=>{ state.lang=state.lang==='he'?'en':'he'; localStorage.setItem(PREFIX+'lang',state.lang); $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang)); applyLang(); });
+$('#themeBtn').addEventListener('click',()=>{ state.theme=state.theme==='night'?'day':'night'; localStorage.setItem(PREFIX+'theme',state.theme); $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme)); applyTheme(); });
+
+/* ============ INIT ============ */
+(async function init(){
+  applyTheme(); applyLang();
+  $('#setName').value=state.name;
+  $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang));
+  $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme));
+  try{ await openDB(); }catch(e){ console.warn('IndexedDB unavailable',e); }
+  go('home');
+  if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
+  window.addEventListener('resize',()=>{ if(edActive && !$('#editorMain').classList.contains('hide')) drawWave(); });
+})();
+</script>
+</body>
+</html>
