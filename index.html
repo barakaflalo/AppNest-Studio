@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; connect-src 'self' blob: data: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' blob: data:; media-src 'self' blob: data:; style-src 'self' 'unsafe-inline';">
 <title>אולפן AppNest</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -21,6 +22,11 @@
     --gold:#b8860b; --gold2:#9a6f08; --goldsoft:rgba(184,134,11,.12);
     --shadow:0 8px 24px rgba(0,0,0,.12);
   }
+  /* 5 accent palettes (gold is default) — win over theme for accent vars */
+  body[data-palette="emerald"]{--gold:#2ecc71;--gold2:#27ae60;--goldsoft:rgba(46,204,113,.14)}
+  body[data-palette="crimson"]{--gold:#ff5a5f;--gold2:#e5484d;--goldsoft:rgba(229,72,77,.14)}
+  body[data-palette="sky"]{--gold:#4a9eff;--gold2:#2d7ff0;--goldsoft:rgba(74,158,255,.14)}
+  body[data-palette="violet"]{--gold:#b18bff;--gold2:#9a6cff;--goldsoft:rgba(154,108,255,.14)}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
   body{
@@ -130,6 +136,7 @@
     <div class="brand"><span class="logo">🎬</span><span>אולפן <b>AppNest</b></span></div>
     <div class="hbtns">
       <button class="icon-btn" id="langBtn" title="שפה">EN</button>
+      <button class="icon-btn" id="paletteBtn" title="ערכת צבע">🎨</button>
       <button class="icon-btn" id="themeBtn" title="מצב יום/לילה">🌙</button>
     </div>
   </header>
@@ -142,6 +149,9 @@
       <div class="tile" data-go="editor"><span class="em">✂️</span><span class="t" data-i="tEdit">עריכת אודיו</span><span class="s" data-i="tEditS">גזירה · חיבור</span></div>
       <div class="tile" data-go="convert"><span class="em">🔄</span><span class="t" data-i="tConvert">המרת קבצים</span><span class="s" data-i="tConvertS">כל פורמט</span></div>
       <div class="tile" data-go="library"><span class="em">📚</span><span class="t" data-i="tLib">הספרייה שלי</span><span class="s" data-i="tLibS">הקלטות שמורות</span></div>
+    </div>
+    <div class="tiles" style="margin-top:12px">
+      <div class="tile" data-go="tovideo" style="grid-column:1 / -1"><span class="em">🎞️</span><span class="t" data-i="tToVid">שיר → וידאו (MP4)</span><span class="s" data-i="tToVidS">MP3 + תמונה → סרטון לשיתוף</span></div>
     </div>
     <div class="card" style="margin-top:14px">
       <b data-i="quickTitle">טיפ מהיר</b>
@@ -210,11 +220,17 @@
         <div class="row tight" style="margin-top:10px">
           <button class="btn ghost sm" id="edPlay" style="flex:1">▶︎ <span data-i="playSel">נגן בחירה</span></button>
           <button class="btn ghost sm" id="edPlayAll" style="flex:1">⏯ <span data-i="playAll">נגן הכל</span></button>
+          <button class="btn ghost sm" id="edStop" style="flex:1">⏹ <span data-i="stopPlay">עצור</span></button>
         </div>
         <div class="row tight" style="margin-top:6px">
           <button class="btn ghost sm" id="edTrim" style="flex:1">✂️ <span data-i="trimTo">גזור לבחירה</span></button>
           <button class="btn ghost sm" id="edDelSel" style="flex:1">🗑 <span data-i="delSel">מחק בחירה</span></button>
           <button class="btn ghost sm" id="edSplit" style="flex:1">⎇ <span data-i="split">פצל כאן</span></button>
+        </div>
+        <div class="row tight" style="margin-top:6px">
+          <button class="btn ghost sm" id="edFadeIn" style="flex:1">🔉 <span data-i="fadeIn">Fade In</span></button>
+          <button class="btn ghost sm" id="edFadeOut" style="flex:1">🔈 <span data-i="fadeOut">Fade Out</span></button>
+          <button class="btn ghost sm" id="edNorm" style="flex:1">📈 <span data-i="normalize">נרמל עוצמה</span></button>
         </div>
       </div>
 
@@ -231,6 +247,14 @@
         <div class="seg" id="expSeg">
           <button data-fmt="mp3" class="on">MP3</button>
           <button data-fmt="wav">WAV</button>
+        </div>
+        <div id="brWrap">
+          <label class="field" data-i="bitrate">איכות MP3 (ביטרייט)</label>
+          <div class="seg" id="brSeg">
+            <button data-br="128">128</button>
+            <button data-br="192" class="on">192</button>
+            <button data-br="320">320</button>
+          </div>
         </div>
         <button class="btn" id="edExport" style="margin-top:8px" data-i="exportBtn">⬇️ ייצא ושמור</button>
         <div class="prog hide" id="edProg"><div></div></div>
@@ -255,6 +279,40 @@
     </div>
   </section>
 
+  <!-- SONG TO VIDEO -->
+  <section id="screen-tovideo" class="screen hide">
+    <h2 class="section" data-i="toVidT">שיר → וידאו (MP4)</h2>
+    <div class="card">
+      <div class="hint" data-i="toVidIntro">הופך קובץ שמע + תמונה לסרטון MP4 — מושלם לשיתוף שיר מ-Suno בוואטסאפ, יוטיוב או אינסטגרם. משתמש במנוע ffmpeg (נטען בפעם הראשונה).</div>
+
+      <label class="field" data-i="tvAudio">🎵 קובץ השמע (MP3/WAV/הקלטה)</label>
+      <button class="btn ghost" id="tvPickAudio" data-i="tvPickAudioB">📂 בחר שמע</button>
+      <div class="hint" id="tvAudioName" style="margin-top:6px"></div>
+
+      <label class="field" data-i="tvImage">🖼️ התמונה (עטיפה/רקע)</label>
+      <button class="btn ghost" id="tvPickImage" data-i="tvPickImageB">📂 בחר תמונה</button>
+      <div id="tvImgPrev" style="margin-top:8px"></div>
+
+      <label class="field" data-i="tvAspect">יחס גובה-רוחב</label>
+      <div class="seg" id="tvAspectSeg">
+        <button data-a="16:9" class="on">16:9 <span data-i="tvWide">רחב</span></button>
+        <button data-a="1:1">1:1 <span data-i="tvSquare">ריבוע</span></button>
+        <button data-a="9:16">9:16 <span data-i="tvStory">סטורי</span></button>
+      </div>
+
+      <div class="switch">
+        <input type="checkbox" id="tvWave">
+        <span data-i="tvWaveform">להוסיף אנימציית גל קול (איטי יותר)</span>
+      </div>
+      <label class="field" data-i="tvBg">צבע רקע</label>
+      <input type="color" id="tvBg" value="#0a0a0a" style="width:60px;height:40px;padding:2px;border-radius:8px;border:1px solid var(--line);background:var(--bg2)">
+
+      <button class="btn" id="tvRun" style="margin-top:14px" disabled data-i="tvRunB">🎬 צור וידאו</button>
+      <div class="prog hide" id="tvProg"><div></div></div>
+      <div class="hint" id="tvStatus"></div>
+    </div>
+  </section>
+
   <!-- SETTINGS -->
   <section id="screen-settings" class="screen hide">
     <h2 class="section" data-i="settings">הגדרות</h2>
@@ -271,6 +329,14 @@
         <button data-th="night" class="on" data-i="night">🌙 לילה</button>
         <button data-th="day" data-i="day">☀️ יום</button>
       </div>
+      <label class="field" data-i="paletteL">ערכת צבע</label>
+      <div class="seg" id="paletteSeg">
+        <button data-pal="gold" class="on">🟡</button>
+        <button data-pal="emerald">🟢</button>
+        <button data-pal="crimson">🔴</button>
+        <button data-pal="sky">🔵</button>
+        <button data-pal="violet">🟣</button>
+      </div>
     </div>
     <div class="card">
       <b data-i="dataT">נתונים</b>
@@ -278,8 +344,27 @@
       <button class="btn red ghost" id="clearAll" style="margin-top:10px;color:var(--red);border-color:var(--red)" data-i="clearData">🗑 מחק את כל ההקלטות</button>
     </div>
     <div class="card">
-      <b>אולפן AppNest <span class="badge">v1.0</span></b>
-      <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
+      <b data-i="engineT">מנוע מדיה (המרה/וידאו)</b>
+      <div class="hint" data-i="engineH">להמרות מתקדמות ולשיר→וידאו נטען מנוע ffmpeg (~30MB) בפעם הראשונה. אפשר לבדוק אותו כאן מראש.</div>
+      <button class="btn ghost" id="engineCheck" style="margin-top:10px" data-i="engineCheckB">🔧 בדוק מנוע מדיה</button>
+      <div class="hint" id="engineStatus"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
+        <b>אולפן AppNest <span class="badge">v1.2</span></b>
+      </div>
+      <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
+      <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost sm" id="aboutStore" style="flex:1">🏬 <span data-i="aboutStore">חנות AppNest</span></button>
+        <button class="btn ghost sm" id="aboutShareApp" style="flex:1">📤 <span data-i="aboutShare">שתף אפליקציה</span></button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn ghost sm" id="aboutFeedback" style="flex:1">✉️ <span data-i="aboutFeedback">שלח משוב</span></button>
+        <button class="btn ghost sm" id="aboutPrivacy" style="flex:1">🔒 <span data-i="aboutPrivacy">פרטיות</span></button>
+      </div>
+      <div class="hint" style="margin-top:10px" data-i="disclaimer">⚠️ הקלט וצור רק תוכן שיש לך זכות אליו. הכלי לשימוש אישי.</div>
     </div>
   </section>
 </div>
@@ -309,6 +394,22 @@ const I18N={
     tEdit:"Edit audio", tEditS:"Trim · Join",
     tConvert:"Convert files", tConvertS:"Any format",
     tLib:"My library", tLibS:"Saved recordings",
+    tToVid:"Song → Video (MP4)", tToVidS:"MP3 + image → shareable clip",
+    stopPlay:"Stop",
+    fadeIn:"Fade In", fadeOut:"Fade Out", normalize:"Normalize",
+    bitrate:"MP3 quality (bitrate)",
+    paletteL:"Color palette",
+    engineT:"Media engine (convert/video)", engineH:"Advanced conversions and Song→Video load the ffmpeg engine (~30MB) on first use. You can test it here in advance.",
+    engineCheckB:"🔧 Test media engine",
+    aboutStore:"AppNest store", aboutShare:"Share app", aboutFeedback:"Send feedback", aboutPrivacy:"Privacy",
+    disclaimer:"⚠️ Only record and create content you have the right to. For personal use.",
+    toVidT:"Song → Video (MP4)",
+    toVidIntro:"Turns an audio file + image into an MP4 — perfect for sharing a Suno song on WhatsApp, YouTube or Instagram. Uses the ffmpeg engine (loads on first use).",
+    tvAudio:"🎵 Audio file (MP3/WAV/recording)", tvPickAudioB:"📂 Pick audio",
+    tvImage:"🖼️ Image (cover/background)", tvPickImageB:"📂 Pick image",
+    tvAspect:"Aspect ratio", tvWide:"Wide", tvSquare:"Square", tvStory:"Story",
+    tvWaveform:"Add sound-wave animation (slower)", tvBg:"Background color",
+    tvRunB:"🎬 Create video",
     quickTitle:"Quick tip",
     quickTip:"To record a Suno song: choose \"Record computer audio\", pick the Suno tab, play the song, then stop. It appears in your library — from there you can trim, join and export to MP3.",
     recMode:"What to record?",
@@ -352,8 +453,10 @@ I18N.he=heDefaults;
 let state={
   lang:localStorage.getItem(PREFIX+'lang')||'he',
   theme:localStorage.getItem(PREFIX+'theme')||'night',
+  palette:localStorage.getItem(PREFIX+'palette')||'gold',
   name:localStorage.getItem(PREFIX+'name')||''
 };
+const PALETTES=['gold','emerald','crimson','sky','violet'];
 
 function applyLang(){
   const L=I18N[state.lang]||I18N.he;
@@ -369,6 +472,12 @@ function applyTheme(){
   document.body.dataset.theme=state.theme;
   $('#themeBtn').textContent=state.theme==='night'?'🌙':'☀️';
   $('meta[name=theme-color]').setAttribute('content',state.theme==='night'?'#0a0a0a':'#f4f2ec');
+}
+function applyPalette(){
+  if(state.palette==='gold') document.body.removeAttribute('data-palette');
+  else document.body.dataset.palette=state.palette;
+  $$('#paletteSeg button').forEach(x=>x.classList.toggle('on',x.dataset.pal===state.palette));
+  if(edActive && !$('#editorMain').classList.contains('hide')) drawWave();
 }
 
 /* ---------- toast ---------- */
@@ -559,6 +668,42 @@ $('#shotBtn').addEventListener('click',async()=>{
 });
 
 /* ============ LIBRARY ============ */
+function extForItem(it){ const t=it.type||''; if(t.includes('mp4'))return t.startsWith('audio')?'m4a':'mp4'; if(t.includes('mpeg'))return 'mp3'; if(t.includes('wav'))return 'wav'; if(t.includes('png'))return 'png'; if(t.includes('ogg'))return 'ogg'; return it.kind==='image'?'png':'webm'; }
+function safeName(s){ return (s||'file').replace(/[^\w\u0590-\u05FF]+/g,'_'); }
+async function shareItem(it){
+  const ext=extForItem(it);
+  const file=new File([it.blob], safeName(it.name)+'.'+ext, {type:it.type||'application/octet-stream'});
+  const text=(state.name?state.name+' · ':'')+(state.lang==='he'?'נוצר עם אולפן AppNest':'made with AppNest Studio');
+  try{
+    if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:it.name,text}); }
+    else if(navigator.share){ await navigator.share({title:it.name,text}); toast('שיתוף קבצים לא נתמך כאן — השתמש בהורדה'); }
+    else { download(it.blob,file.name); toast('שיתוף לא נתמך — הקובץ ירד במקום'); }
+  }catch(e){ if(e.name!=='AbortError') download(it.blob,file.name); }
+}
+function openManage(it){
+  const he=state.lang==='he';
+  const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">
+    <b>${he?'ניהול קובץ':'Manage file'}</b>
+    <label class="field">${he?'שם הקובץ':'File name'}</label>
+    <input type="text" id="mgName" value="${(it.name||'').replace(/"/g,'&quot;')}">
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" id="mgSave" style="flex:1">💾 ${he?'שמור שם':'Save'}</button>
+      <button class="btn ghost sm" id="mgShare" style="flex:1">🔗 ${he?'שתף':'Share'}</button>
+      <button class="btn ghost sm" id="mgDl" style="flex:1">⬇️ ${he?'הורד':'Download'}</button>
+    </div>
+    <button class="btn red sm" id="mgDel" style="width:100%;margin-top:10px">🗑 ${he?'מחק קובץ':'Delete file'}</button>
+    <button class="btn ghost sm" id="mgClose" style="width:100%;margin-top:8px">${he?'סגור':'Close'}</button>
+  </div>`;
+  document.body.appendChild(bg);
+  const close=()=>bg.remove();
+  bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+  bg.querySelector('#mgClose').addEventListener('click',close);
+  bg.querySelector('#mgSave').addEventListener('click',async()=>{ const nm=bg.querySelector('#mgName').value.trim(); if(nm){ it.name=nm; await dbPut(it); renderLibrary(); toast(he?'נשמר ✓':'Saved ✓'); } close(); });
+  bg.querySelector('#mgShare').addEventListener('click',()=>shareItem(it));
+  bg.querySelector('#mgDl').addEventListener('click',()=>download(it.blob,safeName(it.name)+'.'+extForItem(it)));
+  bg.querySelector('#mgDel').addEventListener('click',async()=>{ if(confirm(he?'למחוק את הקובץ? אי אפשר לשחזר.':'Delete this file? Cannot be undone.')){ await dbDel(it.id); renderLibrary(); toast(he?'נמחק':'Deleted'); close(); } });
+}
 async function renderLibrary(){
   const list=$('#libList'); if(!list) return;
   let items=[]; try{ items=await dbAll(); }catch(e){}
@@ -567,19 +712,16 @@ async function renderLibrary(){
   list.innerHTML='';
   items.forEach(it=>{
     const el=document.createElement('div'); el.className='lib-item';
-    const editBtn=it.kind==='audio'?`<button class="mini" data-act="edit" title="ערוך">✂️</button>`:'';
+    const editBtn=it.kind==='audio'?`<button class="mini" data-act="edit" title="ערוך אודיו">✂️</button>`:'';
     el.innerHTML=`<span class="kind">${kindEmoji(it.kind)}</span>
       <div class="meta"><div class="nm">${it.name}</div><div class="sub">${fmtBytes(it.size)}</div></div>
       <button class="mini" data-act="play" title="נגן">▶︎</button>
       ${editBtn}
-      <button class="mini" data-act="dl" title="הורד">⬇️</button>
-      <button class="mini" data-act="del" title="מחק">🗑</button>`;
+      <button class="mini" data-act="share" title="שתף">🔗</button>
+      <button class="mini" data-act="manage" title="נהל">✏️</button>`;
     el.querySelector('[data-act=play]').addEventListener('click',()=>previewItem(it,el));
-    el.querySelector('[data-act=dl]').addEventListener('click',()=>{
-      const ext=it.kind==='image'?'png':(it.kind==='audio'?'webm':'webm');
-      download(it.blob,it.name.replace(/[^\w\u0590-\u05FF]+/g,'_')+'.'+ext);
-    });
-    el.querySelector('[data-act=del]').addEventListener('click',async()=>{ await dbDel(it.id); renderLibrary(); toast('נמחק'); });
+    el.querySelector('[data-act=share]').addEventListener('click',()=>shareItem(it));
+    el.querySelector('[data-act=manage]').addEventListener('click',()=>openManage(it));
     const eb=el.querySelector('[data-act=edit]'); if(eb) eb.addEventListener('click',()=>loadIntoEditor(it));
     list.appendChild(el);
   });
@@ -734,6 +876,22 @@ $('#edSplit').addEventListener('click',()=>{
   edClips.splice(0,1,{buffer:left,start:0,end:left.duration,name:'חלק 1'},{buffer:right,start:0,end:right.duration,name:'חלק 2'});
   edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; drawWave(); renderClips(); toast('פוצל לשני קטעים ✓');
 });
+function applyFade(buffer,dir,dur){
+  const rate=buffer.sampleRate; const n=Math.min(buffer.length,Math.floor(dur*rate));
+  for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch);
+    for(let i=0;i<n;i++){ const g=i/n; const idx=dir==='in'?i:(buffer.length-1-i); d[idx]*=g; } }
+  return buffer;
+}
+function normalizeBuffer(buffer,target=0.98){
+  let peak=0; for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch); for(let i=0;i<d.length;i++){ const a=Math.abs(d[i]); if(a>peak)peak=a; } }
+  if(peak<1e-4) return {buffer,gain:1};
+  const gain=target/peak;
+  for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; }
+  return {buffer,gain};
+}
+$('#edFadeIn').addEventListener('click',()=>{ if(!edActive)return; const dur=Math.min(3,edActive.buffer.duration/3); applyFade(edActive.buffer,'in',dur); drawWave(); toast('Fade In הוחל ✓'); });
+$('#edFadeOut').addEventListener('click',()=>{ if(!edActive)return; const dur=Math.min(3,edActive.buffer.duration/3); applyFade(edActive.buffer,'out',dur); drawWave(); toast('Fade Out הוחל ✓'); });
+$('#edNorm').addEventListener('click',()=>{ if(!edActive)return; const {gain}=normalizeBuffer(edActive.buffer); drawWave(); toast(gain>1?('העוצמה הוגברה ×'+gain.toFixed(2)+' ✓'):'כבר בעוצמה מלאה'); });
 
 /* play */
 function stopEdPlay(){ if(edPlaySrc){try{edPlaySrc.stop();}catch(e){} edPlaySrc=null;} edPlayhead=-1; if(edPlayTimer)cancelAnimationFrame(edPlayTimer); drawWave(); }
@@ -747,8 +905,9 @@ function playBuffer(buffer,fromSec){
   loop();
   src.onended=()=>{ if(edPlaySrc===src){stopEdPlay();} };
 }
-$('#edPlay').addEventListener('click',()=>{ if(!edActive)return; const sel=sliceBuffer(edActive.buffer,edSel.a,edSel.b); if(sel.duration<0.02){toast('בחר קטע');return;} playBuffer(sel,0); });
+$('#edPlay').addEventListener('click',()=>{ if(!edActive)return; if(edPlaySrc){stopEdPlay();return;} const sel=sliceBuffer(edActive.buffer,edSel.a,edSel.b); if(sel.duration<0.02){toast('בחר קטע');return;} playBuffer(sel,0); });
 $('#edPlayAll').addEventListener('click',()=>{ if(!edClips.length)return; if(edPlaySrc){stopEdPlay();return;} const merged=concatBuffers(edClips.map(c=>c.buffer)); playBuffer(merged,0); });
+$('#edStop').addEventListener('click',stopEdPlay);
 
 /* clips list */
 function renderClips(){
@@ -769,8 +928,9 @@ function renderClips(){
 }
 
 /* export */
-let expFmt='mp3';
-$$('#expSeg button').forEach(b=>b.addEventListener('click',()=>{$$('#expSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');expFmt=b.dataset.fmt;}));
+let expFmt='mp3', expBitrate=192;
+$$('#expSeg button').forEach(b=>b.addEventListener('click',()=>{$$('#expSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');expFmt=b.dataset.fmt; $('#brWrap').style.display=expFmt==='mp3'?'block':'none';}));
+$$('#brSeg button').forEach(b=>b.addEventListener('click',()=>{$$('#brSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');expBitrate=+b.dataset.br;}));
 $('#edExport').addEventListener('click',async()=>{
   if(!edClips.length)return;
   const prog=$('#edProg'); prog.classList.remove('hide'); prog.firstElementChild.style.width='15%';
@@ -778,7 +938,7 @@ $('#edExport').addEventListener('click',async()=>{
     const merged=concatBuffers(edClips.map(c=>c.buffer));
     let blob,ext;
     if(expFmt==='wav'){ blob=encodeWAV(merged); ext='wav'; prog.firstElementChild.style.width='100%'; }
-    else{ blob=await encodeMP3(merged,p=>{prog.firstElementChild.style.width=(20+p*0.8)+'%';}); ext='mp3'; }
+    else{ blob=await encodeMP3(merged,p=>{prog.firstElementChild.style.width=(20+p*0.8)+'%';},expBitrate); ext='mp3'; }
     const nm=($('#edName').textContent||'edit').replace(/[^\w\u0590-\u05FF]+/g,'_');
     download(blob,nm+'_edit.'+ext);
     // also save to library
@@ -815,10 +975,10 @@ function loadLame(){
   });
   return lamePromise;
 }
-async function encodeMP3(buffer,onProg){
+async function encodeMP3(buffer,onProg,bitrate){
   await loadLame();
   const numCh=Math.min(2,buffer.numberOfChannels), rate=buffer.sampleRate;
-  const enc=new lamejs.Mp3Encoder(numCh,rate,192);
+  const enc=new lamejs.Mp3Encoder(numCh,rate,bitrate||192);
   const L=buffer.getChannelData(0); const R=numCh>1?buffer.getChannelData(1):L;
   const to16=(f)=>{const o=new Int16Array(f.length);for(let i=0;i<f.length;i++){let s=Math.max(-1,Math.min(1,f[i]));o[i]=s<0?s*0x8000:s*0x7FFF;}return o;};
   const l16=to16(L), r16=numCh>1?to16(R):l16;
@@ -834,7 +994,7 @@ async function encodeMP3(buffer,onProg){
 }
 
 /* ============ CONVERTER ============ */
-let convFile=null, ffmpeg=null, ffmpegLoading=null;
+let convFile=null, ffmpeg=null, ffmpegLoading=null, currentProg=null;
 const AUDIO_OUT=['mp3','wav'];               // native path
 const FF_OUT=['mp3','wav','m4a','ogg','flac','aac','opus','mp4','webm','mkv','avi','mov','gif'];
 $('#convPick').addEventListener('click',()=>{
@@ -878,7 +1038,7 @@ async function runConvert(){
     const outName='out.'+out;
     await ffmpeg.writeFile(inName, await fetchFile(convFile));
     $('#convStatus').textContent='ממיר…'; bar.style.width='55%';
-    ffmpeg.on('progress',({progress})=>{ if(progress>0&&progress<=1) bar.style.width=(55+progress*40)+'%'; });
+    currentProg=(p)=>{ bar.style.width=(55+p*40)+'%'; };
     // when the target is an audio format, drop any video track (handles video->audio extraction too)
     const audioTargets=['mp3','wav','m4a','ogg','flac','aac','opus'];
     const args=audioTargets.includes(out) ? ['-i',inName,'-vn',outName] : ['-i',inName,outName];
@@ -891,43 +1051,149 @@ async function runConvert(){
     $('#convStatus').textContent='הומר ונשמר ✓';
     setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},900);
   }catch(e){ console.error(e); $('#convStatus').textContent='שגיאת המרה: '+(e.message||e); prog.classList.add('hide'); }
+  finally{ currentProg=null; }
 }
 let ffmpegUtil=null;
+function _loadScript(urls, globalCheck){
+  return new Promise((resolve,reject)=>{
+    let i=0;
+    const tryNext=()=>{
+      if(globalCheck&&globalCheck())return resolve();
+      if(i>=urls.length)return reject(new Error('all CDNs failed'));
+      const s=document.createElement('script'); s.src=urls[i++]; s.crossOrigin='anonymous'; s.async=true;
+      s.onload=()=>{ if(globalCheck&&!globalCheck()){s.remove();tryNext();} else resolve(); };
+      s.onerror=()=>{ s.remove(); tryNext(); };
+      document.head.appendChild(s);
+    };
+    tryNext();
+  });
+}
+function fileToU8(file){ return file.arrayBuffer().then(b=>new Uint8Array(b)); }
+async function _toBlobURL(url,mime){ const r=await fetch(url); if(!r.ok)throw new Error('fetch '+r.status); return URL.createObjectURL(new Blob([await r.arrayBuffer()],{type:mime})); }
 async function loadFFmpeg(){
   if(ffmpeg) return ffmpeg;
   if(ffmpegLoading) return ffmpegLoading;
   ffmpegLoading=(async()=>{
-    const core=await import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10');
-    ffmpegUtil=await import('https://esm.sh/@ffmpeg/util@0.12.1');
-    const {FFmpeg}=core; ffmpeg=new FFmpeg();
-    const base='https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-    await ffmpeg.load({
-      coreURL: await ffmpegUtil.toBlobURL(base+'/ffmpeg-core.js','text/javascript'),
-      wasmURL: await ffmpegUtil.toBlobURL(base+'/ffmpeg-core.wasm','application/wasm')
-    });
-    return ffmpeg;
+    // Documented working pair: @ffmpeg/ffmpeg 0.12.10 <-> @ffmpeg/core(-mt) 0.12.6
+    const FF_VER='0.12.10', FF_CORE_VER='0.12.6';
+    const ffBases=[`https://unpkg.com/@ffmpeg/ffmpeg@${FF_VER}/dist/umd`,`https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@${FF_VER}/dist/umd`];
+    await _loadScript(ffBases.map(b=>b+'/ffmpeg.js'), ()=>window.FFmpegWASM&&window.FFmpegWASM.FFmpeg);
+    const {FFmpeg}=window.FFmpegWASM;
+    // class worker must be same-origin -> fetch it and serve as a blob (fixes the cross-origin Worker error).
+    // Derive the chunk filename from the source so it survives version bumps.
+    let classWorkerURL;
+    for(const b of ffBases){
+      try{ const r=await fetch(b+'/ffmpeg.js'); if(!r.ok)continue; const src=await r.text();
+        const wm=src.match(/(\d+\.ffmpeg\.js)/); const wf=wm?wm[1]:'814.ffmpeg.js';
+        classWorkerURL=await _toBlobURL(b+'/'+wf,'text/javascript'); break; }catch(e){}
+    }
+    // crossOriginIsolated (true on Cloudflare/Netlify with COOP/COEP) -> fast multi-thread core; else single-thread (works on GitHub Pages).
+    const mt=(typeof window.crossOriginIsolated!=='undefined'&&window.crossOriginIsolated===true&&typeof SharedArrayBuffer!=='undefined');
+    const ff=new FFmpeg();
+    ff.on('progress',({progress})=>{ if(currentProg&&progress>0&&progress<=1) currentProg(progress); });
+    const coreBases=(useMt)=>{ const pkg=useMt?'@ffmpeg/core-mt':'@ffmpeg/core'; return [`https://unpkg.com/${pkg}@${FF_CORE_VER}/dist/esm`,`https://cdn.jsdelivr.net/npm/${pkg}@${FF_CORE_VER}/dist/esm`]; };
+    // core + wasm as DIRECT urls (blobbing the core breaks its module import); only the class worker is a blob.
+    const build=async(useMt)=>{ let err; for(const base of coreBases(useMt)){ try{ const cfg={classWorkerURL,coreURL:base+'/ffmpeg-core.js',wasmURL:base+'/ffmpeg-core.wasm'}; if(useMt)cfg.workerURL=base+'/ffmpeg-core.worker.js'; await ff.load(cfg); return; }catch(e){err=e;} } throw err; };
+    try{ await build(mt); }catch(e){ if(mt){ await build(false); } else throw e; }
+    ffmpeg=ff; ffmpegUtil={fetchFile:fileToU8};
+    return ff;
   })();
   return ffmpegLoading;
 }
 
-/* ============ SETTINGS ============ */
+/* ============ SONG → VIDEO (MP3 + image -> MP4) ============ */
+let tvAudio=null, tvImage=null, tvAspect='16:9';
+$('#tvPickAudio').addEventListener('click',()=>{
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='audio/*,video/*';
+  inp.onchange=()=>{ if(inp.files[0]){ tvAudio=inp.files[0]; $('#tvAudioName').textContent='✓ '+tvAudio.name; tvCheck(); } }; inp.click();
+});
+$('#tvPickImage').addEventListener('click',()=>{
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=()=>{ if(inp.files[0]){ tvImage=inp.files[0];
+    const u=URL.createObjectURL(tvImage); $('#tvImgPrev').innerHTML=`<img src="${u}" style="max-height:140px;border-radius:12px;border:1px solid var(--line)">`; tvCheck(); } }; inp.click();
+});
+$$('#tvAspectSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvAspectSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvAspect=b.dataset.a; }));
+function tvCheck(){ $('#tvRun').disabled=!(tvAudio&&tvImage); }
+
+$('#tvRun').addEventListener('click',async()=>{
+  if(!(tvAudio&&tvImage))return;
+  const prog=$('#tvProg'), bar=prog.firstElementChild, st=$('#tvStatus');
+  const waveform=$('#tvWave').checked, bg=$('#tvBg').value;
+  try{
+    prog.classList.remove('hide'); bar.style.width='5%';
+    st.innerHTML='טוען מנוע וידאו (בפעם הראשונה זה כבד — כ-30MB)…';
+    await loadFFmpeg(); bar.style.width='25%';
+    st.textContent=waveform?'יוצר וידאו עם גל קול (זה לוקח יותר זמן)…':'יוצר וידאו…';
+    currentProg=(p)=>{ bar.style.width=(25+p*70)+'%'; };
+    const blob=await makeSongVideo(tvAudio,tvImage,{aspect:tvAspect,bg,waveform});
+    bar.style.width='100%';
+    const base=(tvAudio.name.replace(/\.[^.]+$/,''))||'song';
+    download(blob,base+'.mp4');
+    await dbPut({id:'v'+Date.now(),kind:'video',type:'video/mp4',blob,size:blob.size,name:'וידאו: '+base,created:Date.now()});
+    st.textContent='הוידאו נוצר ונשמר בספרייה ✓';
+    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},1000);
+  }catch(e){ console.error(e); st.textContent='שגיאה ביצירת הוידאו: '+(e.message||e); prog.classList.add('hide'); }
+  finally{ currentProg=null; }
+});
+
+async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',waveform=false}){
+  await loadFFmpeg();
+  const {fetchFile}=ffmpegUtil;
+  const dims={'16:9':[1280,720],'1:1':[720,720],'9:16':[720,1280]}[aspect]||[1280,720];
+  const [W,H]=dims; const bgHex=(bg||'#0a0a0a').replace('#','0x');
+  const imgExt=(imgFile.name.match(/\.[^.]+$/)||['.jpg'])[0];
+  const audExt=(audioFile.name.match(/\.[^.]+$/)||['.mp3'])[0];
+  const imgName='cover'+imgExt, audName='track'+audExt;
+  await ffmpeg.writeFile(imgName, await fetchFile(imgFile));
+  await ffmpeg.writeFile(audName, await fetchFile(audioFile));
+  const pad=`scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=${bgHex},setsar=1`;
+  let args;
+  if(waveform){
+    const wh=Math.round(H*0.26);
+    const fc=`[0:v]${pad}[bg];[1:a]showwaves=s=${W}x${wh}:mode=cline:rate=10:colors=0xffffffcc[w];[bg][w]overlay=0:${H-wh}[v]`;
+    args=['-loop','1','-framerate','10','-i',imgName,'-i',audName,'-filter_complex',fc,'-map','[v]','-map','1:a',
+          '-c:v','libx264','-preset','ultrafast','-r','10','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-shortest','out.mp4'];
+  }else{
+    // static image: 1 fps keeps frame count tiny -> big speed win for the WASM engine
+    args=['-loop','1','-framerate','1','-i',imgName,'-i',audName,'-vf',pad,'-tune','stillimage',
+          '-c:v','libx264','-preset','ultrafast','-r','1','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','-shortest','out.mp4'];
+  }
+  await ffmpeg.exec(args);
+  const data=await ffmpeg.readFile('out.mp4');
+  return new Blob([data.buffer],{type:'video/mp4'});
+}
 $('#setName').addEventListener('input',e=>{ state.name=e.target.value; localStorage.setItem(PREFIX+'name',state.name); });
 $$('#langSeg button').forEach(b=>b.addEventListener('click',()=>{ state.lang=b.dataset.lang; localStorage.setItem(PREFIX+'lang',state.lang); $$('#langSeg button').forEach(x=>x.classList.toggle('on',x===b)); applyLang(); }));
 $$('#themeSeg button').forEach(b=>b.addEventListener('click',()=>{ state.theme=b.dataset.th; localStorage.setItem(PREFIX+'theme',state.theme); $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x===b)); applyTheme(); }));
+$$('#paletteSeg button').forEach(b=>b.addEventListener('click',()=>{ state.palette=b.dataset.pal; localStorage.setItem(PREFIX+'palette',state.palette); applyPalette(); }));
 $('#clearAll').addEventListener('click',async()=>{
-  if(!confirm(state.lang==='he'?'למחוק את כל ההקלטות? אי אפשר לשחזר.':'Delete all recordings? This cannot be undone.'))return;
-  await dbClear(); renderLibrary(); toast(state.lang==='he'?'נמחק הכל':'All cleared');
+  const he=state.lang==='he';
+  if(!confirm(he?'למחוק את כל ההקלטות? אי אפשר לשחזר.':'Delete all recordings? This cannot be undone.'))return;
+  if(!confirm(he?'בטוח לגמרי? כל הקבצים בספרייה יימחקו סופית.':'Absolutely sure? Every file in the library will be permanently deleted.'))return;
+  await dbClear(); renderLibrary(); toast(he?'נמחק הכל':'All cleared');
 });
+$('#engineCheck').addEventListener('click',async()=>{
+  const st=$('#engineStatus'); st.textContent=state.lang==='he'?'טוען מנוע… (הורדה ראשונית ~30MB)':'Loading engine… (~30MB first time)';
+  try{ await loadFFmpeg(); const mode=(self.crossOriginIsolated===true)?'multi-thread':'single-thread'; st.textContent=(state.lang==='he'?'✓ המנוע מוכן — מצב ':'✓ Engine ready — ')+mode; }
+  catch(e){ console.error(e); st.textContent=(state.lang==='he'?'✗ טעינת המנוע נכשלה: ':'✗ Engine load failed: ')+(e.message||e); }
+});
+$('#aboutStore').addEventListener('click',()=>window.open('https://barakaflalo.github.io/appnest','_blank'));
+$('#aboutShareApp').addEventListener('click',async()=>{ try{ if(navigator.share) await navigator.share({title:'אולפן AppNest',text:(state.name?state.name+' · ':'')+'אולפן AppNest',url:location.href}); else { await navigator.clipboard.writeText(location.href); toast('הקישור הועתק'); } }catch(e){} });
+$('#aboutFeedback').addEventListener('click',()=>{ location.href='mailto:appnest55@gmail.com?subject='+encodeURIComponent('משוב — אולפן AppNest v1.2'); });
+$('#aboutPrivacy').addEventListener('click',()=>window.open('privacy_policy.html','_blank'));
 $('#langBtn').addEventListener('click',()=>{ state.lang=state.lang==='he'?'en':'he'; localStorage.setItem(PREFIX+'lang',state.lang); $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang)); applyLang(); });
 $('#themeBtn').addEventListener('click',()=>{ state.theme=state.theme==='night'?'day':'night'; localStorage.setItem(PREFIX+'theme',state.theme); $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme)); applyTheme(); });
+$('#paletteBtn').addEventListener('click',()=>{ const i=PALETTES.indexOf(state.palette); state.palette=PALETTES[(i+1)%PALETTES.length]; localStorage.setItem(PREFIX+'palette',state.palette); applyPalette(); });
 
 /* ============ INIT ============ */
 (async function init(){
-  applyTheme(); applyLang();
+  applyTheme(); applyPalette(); applyLang();
   $('#setName').value=state.name;
   $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang));
   $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme));
+  $$('#paletteSeg button').forEach(x=>x.classList.toggle('on',x.dataset.pal===state.palette));
   try{ await openDB(); }catch(e){ console.warn('IndexedDB unavailable',e); }
+  try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   go('home');
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   window.addEventListener('resize',()=>{ if(edActive && !$('#editorMain').classList.contains('hide')) drawWave(); });

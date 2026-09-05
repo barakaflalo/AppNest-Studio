@@ -1,6 +1,6 @@
 /* AppNest Studio service worker — caches the app shell only.
    External engines (ffmpeg / lamejs from CDN) are NOT cached and load on demand. */
-const CACHE = 'appnest-studio-v1';
+const CACHE = 'appnest-studio-v3';
 const SHELL = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(()=>self.skipWaiting()));
