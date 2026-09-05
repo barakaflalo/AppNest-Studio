@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; connect-src 'self' blob: data: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' blob: data:; media-src 'self' blob: data:; style-src 'self' 'unsafe-inline';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:; connect-src 'self' blob: data: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://generativelanguage.googleapis.com https://api.openai.com; img-src 'self' blob: data:; media-src 'self' blob: data:; style-src 'self' 'unsafe-inline';">
 <title>אולפן AppNest</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -78,6 +78,7 @@
   .btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4)}
   .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line);box-shadow:none}
   .btn.ghost:hover{border-color:var(--gold)}
+  .btn.ghost.on{border-color:var(--gold);color:var(--gold);background:var(--goldsoft)}
   .btn.red{background:linear-gradient(180deg,#f0575c,var(--red));color:#fff}
   .btn.sm{padding:9px 12px;font-size:13px;width:auto}
   .row{display:flex;gap:8px;flex-wrap:wrap}
@@ -120,6 +121,7 @@
   .toast{position:fixed;bottom:84px;inset-inline:0;display:flex;justify-content:center;z-index:100;pointer-events:none}
   .toast > div{background:var(--card2);border:1px solid var(--gold);color:var(--txt);padding:11px 18px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;max-width:90%}
   .hide{display:none!important}
+  .screen.drag{outline:2px dashed var(--gold);outline-offset:-6px;border-radius:16px}
   video.prev,audio.prev{width:100%;border-radius:12px;margin-top:10px;background:#000}
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
   .badge{display:inline-block;background:var(--goldsoft);color:var(--gold);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;margin-inline-start:6px}
@@ -151,7 +153,8 @@
       <div class="tile" data-go="library"><span class="em">📚</span><span class="t" data-i="tLib">הספרייה שלי</span><span class="s" data-i="tLibS">הקלטות שמורות</span></div>
     </div>
     <div class="tiles" style="margin-top:12px">
-      <div class="tile" data-go="tovideo" style="grid-column:1 / -1"><span class="em">🎞️</span><span class="t" data-i="tToVid">שיר → וידאו (MP4)</span><span class="s" data-i="tToVidS">MP3 + תמונה → סרטון לשיתוף</span></div>
+      <div class="tile" data-go="tovideo"><span class="em">🎞️</span><span class="t" data-i="tToVid">שיר → וידאו</span><span class="s" data-i="tToVidS">MP3 + תמונה + מילים</span></div>
+      <div class="tile" data-go="vtrim"><span class="em">✂️</span><span class="t" data-i="tVtrim">חיתוך וידאו</span><span class="s" data-i="tVtrimS">גזירת התחלה/סוף</span></div>
     </div>
     <div class="card" style="margin-top:14px">
       <b data-i="quickTitle">טיפ מהיר</b>
@@ -217,7 +220,18 @@
         </div>
         <canvas class="wave" id="waveC"></canvas>
         <div class="hint" data-i="waveHint">גרור את הידיות הזהובות כדי לבחור קטע. הקו האדום = מיקום הנגינה.</div>
-        <div class="row tight" style="margin-top:10px">
+        <div id="selInfo" class="hint" style="text-align:center;font-variant-numeric:tabular-nums;margin-top:2px"></div>
+        <div class="row tight" id="nudgeRow" style="margin-top:8px">
+          <button class="btn ghost sm" data-edge="a" data-dir="-1" style="flex:1">−<span data-i="startEdge"> התחלה</span></button>
+          <button class="btn ghost sm" data-edge="a" data-dir="1" style="flex:1"><span data-i="startEdge">התחלה </span>+</button>
+          <button class="btn ghost sm" data-edge="b" data-dir="-1" style="flex:1">−<span data-i="endEdge"> סוף</span></button>
+          <button class="btn ghost sm" data-edge="b" data-dir="1" style="flex:1"><span data-i="endEdge">סוף </span>+</button>
+        </div>
+        <div class="row tight" style="margin-top:8px">
+          <button class="btn ghost sm" id="edUndo" style="flex:1" disabled>↩️ <span data-i="undo">בטל</span></button>
+          <button class="btn ghost sm" id="edLoop" style="flex:1">🔁 <span data-i="loop">לולאה</span></button>
+        </div>
+        <div class="row tight" style="margin-top:8px">
           <button class="btn ghost sm" id="edPlay" style="flex:1">▶︎ <span data-i="playSel">נגן בחירה</span></button>
           <button class="btn ghost sm" id="edPlayAll" style="flex:1">⏯ <span data-i="playAll">נגן הכל</span></button>
           <button class="btn ghost sm" id="edStop" style="flex:1">⏹ <span data-i="stopPlay">עצור</span></button>
@@ -307,9 +321,42 @@
       <label class="field" data-i="tvBg">צבע רקע</label>
       <input type="color" id="tvBg" value="#0a0a0a" style="width:60px;height:40px;padding:2px;border-radius:8px;border:1px solid var(--line);background:var(--bg2)">
 
+      <label class="field" data-i="tvLyricsL">🎤 מילות השיר (כתוביות) — לא חובה</label>
+      <textarea id="tvLyrics" rows="5" placeholder="הדבק כאן את מילות השיר, שורה בכל שורה…" style="width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);padding:11px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical"></textarea>
+      <div id="tvLyricsOpts" class="hide">
+        <label class="field" data-i="tvSyncL">סנכרון המילים לשיר</label>
+        <div class="seg" id="tvSyncSeg">
+          <button data-sync="manual" class="on" data-i="tvSyncManual">🎯 ידני</button>
+          <button data-sync="auto" data-i="tvSyncAuto">⚡ אוטומטי</button>
+          <button data-sync="ai" data-i="tvSyncAi">🤖 בינה</button>
+        </div>
+        <button class="btn ghost sm" id="tvSyncBtn" style="width:100%;margin-top:8px" data-i="tvSyncBtnL">🎯 סנכרן מילים ידנית</button>
+        <div class="hint" id="tvSyncStatus"></div>
+      </div>
+
       <button class="btn" id="tvRun" style="margin-top:14px" disabled data-i="tvRunB">🎬 צור וידאו</button>
       <div class="prog hide" id="tvProg"><div></div></div>
       <div class="hint" id="tvStatus"></div>
+    </div>
+  </section>
+
+  <!-- VIDEO TRIM -->
+  <section id="screen-vtrim" class="screen hide">
+    <h2 class="section" data-i="vtrimT">חיתוך וידאו</h2>
+    <div class="card">
+      <div class="hint" data-i="vtrimIntro">בחר וידאו, סמן התחלה וסוף, וקבל קטע חתוך במדויק. משתמש במנוע ffmpeg (נטען בפעם הראשונה).</div>
+      <button class="btn" id="vtPick" style="margin-top:12px" data-i="vtPickB">📂 בחר וידאו</button>
+      <div id="vtBody" class="hide" style="margin-top:12px">
+        <video id="vtVideo" class="prev" controls></video>
+        <label class="field"><span data-i="vtStart">התחלה</span>: <b id="vtStartL">0:00.0</b></label>
+        <input type="range" id="vtStart" min="0" max="1000" value="0" style="width:100%">
+        <label class="field"><span data-i="vtEnd">סוף</span>: <b id="vtEndL">0:00.0</b></label>
+        <input type="range" id="vtEnd" min="0" max="1000" value="1000" style="width:100%">
+        <div class="hint" id="vtLen"></div>
+        <button class="btn" id="vtRun" style="margin-top:10px" data-i="vtRunB">✂️ חתוך ושמור</button>
+        <div class="prog hide" id="vtProg"><div></div></div>
+        <div class="hint" id="vtStatus"></div>
+      </div>
     </div>
   </section>
 
@@ -344,6 +391,12 @@
       <button class="btn red ghost" id="clearAll" style="margin-top:10px;color:var(--red);border-color:var(--red)" data-i="clearData">🗑 מחק את כל ההקלטות</button>
     </div>
     <div class="card">
+      <b data-i="aiT">🤖 בינה — סנכרון חכם</b>
+      <div class="hint" data-i="aiH">חיבור מפתח (BYOK) לסנכרון אוטומטי של מילות שיר לפי מה שנשמע בשיר. המפתח נשמר רק במכשיר שלך ונשלח ישירות לספק שבחרת.</div>
+      <div id="aiStatusLine" class="hint" style="margin-top:6px"></div>
+      <button class="btn ghost" id="aiSetupBtn" style="margin-top:8px" data-i="aiSetupB">🔑 הגדר חיבור בינה</button>
+    </div>
+    <div class="card">
       <b data-i="engineT">מנוע מדיה (המרה/וידאו)</b>
       <div class="hint" data-i="engineH">להמרות מתקדמות ולשיר→וידאו נטען מנוע ffmpeg (~30MB) בפעם הראשונה. אפשר לבדוק אותו כאן מראש.</div>
       <button class="btn ghost" id="engineCheck" style="margin-top:10px" data-i="engineCheckB">🔧 בדוק מנוע מדיה</button>
@@ -352,7 +405,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v1.2</span></b>
+        <b>אולפן AppNest <span class="badge">v1.5</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -396,6 +449,7 @@ const I18N={
     tLib:"My library", tLibS:"Saved recordings",
     tToVid:"Song → Video (MP4)", tToVidS:"MP3 + image → shareable clip",
     stopPlay:"Stop",
+    undo:"Undo", loop:"Loop", startEdge:"start", endEdge:"end",
     fadeIn:"Fade In", fadeOut:"Fade Out", normalize:"Normalize",
     bitrate:"MP3 quality (bitrate)",
     paletteL:"Color palette",
@@ -410,6 +464,15 @@ const I18N={
     tvAspect:"Aspect ratio", tvWide:"Wide", tvSquare:"Square", tvStory:"Story",
     tvWaveform:"Add sound-wave animation (slower)", tvBg:"Background color",
     tvRunB:"🎬 Create video",
+    tvLyricsL:"🎤 Lyrics (subtitles) — optional",
+    tvSyncL:"Sync lyrics to the song", tvSyncManual:"🎯 Manual (precise)", tvSyncAuto:"⚡ Auto",
+    tvSyncBtnL:"🎯 Sync lyrics manually",
+    tvSyncAi:"🤖 AI",
+    tVtrim:"Trim video", tVtrimS:"Cut start/end",
+    vtrimT:"Trim video", vtrimIntro:"Pick a video, mark start and end, and get an accurately trimmed clip. Uses ffmpeg (loads first time).",
+    vtPickB:"📂 Pick a video", vtStart:"Start", vtEnd:"End", vtRunB:"✂️ Trim & save",
+    aiT:"🤖 AI — smart sync", aiH:"Connect a key (BYOK) to auto-sync lyrics to what's heard in the song. The key is stored only on your device and sent directly to the provider you choose.",
+    aiSetupB:"🔑 Set up AI connection",
     quickTitle:"Quick tip",
     quickTip:"To record a Suno song: choose \"Record computer audio\", pick the Suno tab, play the song, then stop. It appears in your library — from there you can trim, join and export to MP3.",
     recMode:"What to record?",
@@ -744,10 +807,11 @@ let edClips=[]; // each: {buffer, start, end, name}  (in seconds within its buff
 let edSel={a:0,b:0}; // selection in the FIRST clip's timeline (we edit clip[0] region ops on the merged? -> we operate on a single active buffer)
 let edActive=null;   // {buffer} currently shown in waveform (the working buffer)
 let edPlaySrc=null;
+let edUndoStack=[];
 
 $('#edLoadFile').addEventListener('click',()=>pickAudioFile(f=>loadFileIntoEditor(f)));
 $('#edAddClip').addEventListener('click',()=>pickAudioFile(async f=>{
-  const buf=await decodeFile(f);
+  const buf=await decodeFile(f); pushUndo();
   edClips.push({buffer:buf,start:0,end:buf.duration,name:f.name});
   renderClips(); toast('קטע נוסף ✓');
 }));
@@ -773,10 +837,17 @@ function startEditor(buffer,name){
   edClips=[{buffer,start:0,end:buffer.duration,name}];
   edActive=edClips[0];
   edSel={a:0,b:buffer.duration};
+  edUndoStack=[];
   $('#editorEmpty').classList.add('hide'); $('#editorMain').classList.remove('hide');
   $('#edName').textContent=name;
-  drawWave(); renderClips();
+  drawWave(); renderClips(); updateUndoBtn();
 }
+/* undo */
+function snapClips(){ return { clips: edClips.map(c=>({buffer:c.buffer,start:c.start,end:c.end,name:c.name})), sel:{a:edSel.a,b:edSel.b} }; }
+function pushUndo(){ edUndoStack.push(snapClips()); if(edUndoStack.length>40) edUndoStack.shift(); updateUndoBtn(); }
+function updateUndoBtn(){ const b=$('#edUndo'); if(b) b.disabled=edUndoStack.length===0; }
+function doUndo(){ if(!edUndoStack.length)return; stopEdPlay(); const s=edUndoStack.pop(); edClips=s.clips.map(c=>({...c})); edActive=edClips[0]; edSel={a:s.sel.a,b:s.sel.b}; drawWave(); renderClips(); updateUndoBtn(); toast(state.lang==='he'?'בוטל ↩️':'Undone ↩️'); }
+function cloneBuffer(buf){ const ctx=actx(); const out=ctx.createBuffer(buf.numberOfChannels,buf.length,buf.sampleRate); for(let ch=0;ch<buf.numberOfChannels;ch++) out.getChannelData(ch).set(buf.getChannelData(ch)); return out; }
 
 /* waveform on clip[0] (the active editing buffer = merged? -> we edit the first clip; others are appended for join) */
 const waveC=$('#waveC'); const wctx=waveC.getContext('2d');
@@ -807,7 +878,10 @@ function drawWave(){
   wctx.beginPath();wctx.arc(xa,10,7,0,7);wctx.arc(xb,110,7,0,7);wctx.fill();
   // playhead
   if(edPlayhead>=0){ const xp=edPlayhead/dur*w; wctx.strokeStyle='#e5484d'; wctx.lineWidth=2; wctx.beginPath(); wctx.moveTo(xp,0); wctx.lineTo(xp,h); wctx.stroke(); }
+  updateSelInfo();
 }
+function fmtTimeMs(sec){ sec=Math.max(0,sec); const m=Math.floor(sec/60); const s=(sec%60); return m+':'+(s<10?'0':'')+s.toFixed(1); }
+function updateSelInfo(){ const el=$('#selInfo'); if(!el||!edActive)return; const he=state.lang==='he'; const a=Math.min(edSel.a,edSel.b), b=Math.max(edSel.a,edSel.b); el.textContent=(he?'התחלה ':'start ')+fmtTimeMs(a)+'  ·  '+(he?'סוף ':'end ')+fmtTimeMs(b)+'  ·  '+(he?'אורך ':'len ')+fmtTimeMs(b-a); }
 let edPlayhead=-1;
 // drag handles
 let dragging=null;
@@ -837,6 +911,15 @@ function pointerUp(){ if(dragging){ if(edSel.a>edSel.b){const tmp=edSel.a;edSel.
 waveC.addEventListener('mousedown',pointerDown); window.addEventListener('mousemove',pointerMove); window.addEventListener('mouseup',pointerUp);
 waveC.addEventListener('touchstart',e=>{pointerDown(e);},{passive:true}); waveC.addEventListener('touchmove',e=>{pointerMove(e);e.preventDefault();},{passive:false}); waveC.addEventListener('touchend',pointerUp);
 
+$$('#nudgeRow [data-edge]').forEach(btn=>btn.addEventListener('click',()=>{
+  if(!edActive)return; const edge=btn.dataset.edge, step=0.1*(+btn.dataset.dir);
+  edSel[edge]=Math.max(0,Math.min(edActive.buffer.duration, edSel[edge]+step));
+  if(edge==='a') edSel.a=Math.min(edSel.a,edSel.b);
+  if(edge==='b') edSel.b=Math.max(edSel.b,edSel.a);
+  drawWave();
+}));
+$('#edUndo').addEventListener('click',doUndo);
+
 /* buffer ops */
 function sliceBuffer(buffer,from,to){
   const ctx=actx(); const rate=buffer.sampleRate;
@@ -862,52 +945,57 @@ function deleteRegion(buffer,from,to){
 }
 
 $('#edTrim').addEventListener('click',()=>{
-  if(!edActive)return; const b=sliceBuffer(edActive.buffer,edSel.a,edSel.b);
+  if(!edActive)return; pushUndo(); const b=sliceBuffer(edActive.buffer,edSel.a,edSel.b);
   edActive.buffer=b; edClips[0]=edActive; edSel={a:0,b:b.duration}; edPlayhead=-1; drawWave(); renderClips(); toast('נגזר לבחירה ✓');
 });
 $('#edDelSel').addEventListener('click',()=>{
-  if(!edActive)return; if(edSel.b-edSel.a<0.01){toast('אין בחירה');return;}
+  if(!edActive)return; if(edSel.b-edSel.a<0.01){toast('אין בחירה');return;} pushUndo();
   const b=deleteRegion(edActive.buffer,edSel.a,edSel.b);
   edActive.buffer=b; edClips[0]=edActive; edSel={a:0,b:0}; edPlayhead=-1; drawWave(); renderClips(); toast('הקטע נמחק ✓');
 });
 $('#edSplit').addEventListener('click',()=>{
-  if(!edActive)return; const p=edSel.b; if(p<=0||p>=edActive.buffer.duration){toast('הזז את הקו לנקודת הפיצול');return;}
+  if(!edActive)return; const p=edSel.b; if(p<=0||p>=edActive.buffer.duration){toast('הזז את הקו לנקודת הפיצול');return;} pushUndo();
   const left=sliceBuffer(edActive.buffer,0,p), right=sliceBuffer(edActive.buffer,p,edActive.buffer.duration);
   edClips.splice(0,1,{buffer:left,start:0,end:left.duration,name:'חלק 1'},{buffer:right,start:0,end:right.duration,name:'חלק 2'});
   edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; drawWave(); renderClips(); toast('פוצל לשני קטעים ✓');
 });
 function applyFade(buffer,dir,dur){
-  const rate=buffer.sampleRate; const n=Math.min(buffer.length,Math.floor(dur*rate));
-  for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch);
-    for(let i=0;i<n;i++){ const g=i/n; const idx=dir==='in'?i:(buffer.length-1-i); d[idx]*=g; } }
-  return buffer;
+  const out=cloneBuffer(buffer); const rate=out.sampleRate; const n=Math.min(out.length,Math.floor(dur*rate));
+  for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch);
+    for(let i=0;i<n;i++){ const g=i/n; const idx=dir==='in'?i:(out.length-1-i); d[idx]*=g; } }
+  return out;
 }
 function normalizeBuffer(buffer,target=0.98){
   let peak=0; for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch); for(let i=0;i<d.length;i++){ const a=Math.abs(d[i]); if(a>peak)peak=a; } }
   if(peak<1e-4) return {buffer,gain:1};
-  const gain=target/peak;
-  for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; }
-  return {buffer,gain};
+  const gain=target/peak; const out=cloneBuffer(buffer);
+  for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; }
+  return {buffer:out,gain};
 }
-$('#edFadeIn').addEventListener('click',()=>{ if(!edActive)return; const dur=Math.min(3,edActive.buffer.duration/3); applyFade(edActive.buffer,'in',dur); drawWave(); toast('Fade In הוחל ✓'); });
-$('#edFadeOut').addEventListener('click',()=>{ if(!edActive)return; const dur=Math.min(3,edActive.buffer.duration/3); applyFade(edActive.buffer,'out',dur); drawWave(); toast('Fade Out הוחל ✓'); });
-$('#edNorm').addEventListener('click',()=>{ if(!edActive)return; const {gain}=normalizeBuffer(edActive.buffer); drawWave(); toast(gain>1?('העוצמה הוגברה ×'+gain.toFixed(2)+' ✓'):'כבר בעוצמה מלאה'); });
+$('#edFadeIn').addEventListener('click',()=>{ if(!edActive)return; pushUndo(); const dur=Math.min(3,edActive.buffer.duration/3); edActive.buffer=applyFade(edActive.buffer,'in',dur); edClips[0]=edActive; drawWave(); toast('Fade In הוחל ✓'); });
+$('#edFadeOut').addEventListener('click',()=>{ if(!edActive)return; pushUndo(); const dur=Math.min(3,edActive.buffer.duration/3); edActive.buffer=applyFade(edActive.buffer,'out',dur); edClips[0]=edActive; drawWave(); toast('Fade Out הוחל ✓'); });
+$('#edNorm').addEventListener('click',()=>{ if(!edActive)return; pushUndo(); const {buffer,gain}=normalizeBuffer(edActive.buffer); edActive.buffer=buffer; edClips[0]=edActive; drawWave(); toast(gain>1?('העוצמה הוגברה ×'+gain.toFixed(2)+' ✓'):'כבר בעוצמה מלאה'); });
 
 /* play */
-function stopEdPlay(){ if(edPlaySrc){try{edPlaySrc.stop();}catch(e){} edPlaySrc=null;} edPlayhead=-1; if(edPlayTimer)cancelAnimationFrame(edPlayTimer); drawWave(); }
-let edPlayTimer;
-function playBuffer(buffer,fromSec){
+let edPlayTimer, edLoop=false;
+function stopEdPlay(){ if(edPlaySrc){try{edPlaySrc.stop();}catch(e){} edPlaySrc=null;} if(edPlayTimer)cancelAnimationFrame(edPlayTimer); edPlayhead=-1; drawWave(); }
+function playRegion(from,to,loop){
   stopEdPlay(); const ctx=actx(); if(ctx.state==='suspended')ctx.resume();
-  const src=ctx.createBufferSource(); src.buffer=buffer; src.connect(ctx.destination);
-  const startAt=ctx.currentTime; src.start(0,fromSec||0); edPlaySrc=src;
-  const base=fromSec||0;
-  const loop=()=>{ edPlayhead=base+(ctx.currentTime-startAt); if(edPlayhead>=buffer.duration){stopEdPlay();return;} drawWave(); edPlayTimer=requestAnimationFrame(loop); };
-  loop();
-  src.onended=()=>{ if(edPlaySrc===src){stopEdPlay();} };
+  const buffer=edActive.buffer; const src=ctx.createBufferSource(); src.buffer=buffer; src.connect(ctx.destination);
+  const startAt=ctx.currentTime; src.start(0,Math.max(0,from)); edPlaySrc=src;
+  const span=Math.max(0.02,to-from);
+  const tick=()=>{ const el=ctx.currentTime-startAt; if(el>=span){ if(loop&&edPlaySrc===src){ playRegion(from,to,true); } else { stopEdPlay(); } return; } edPlayhead=from+el; drawWave(); edPlayTimer=requestAnimationFrame(tick); };
+  tick();
 }
-$('#edPlay').addEventListener('click',()=>{ if(!edActive)return; if(edPlaySrc){stopEdPlay();return;} const sel=sliceBuffer(edActive.buffer,edSel.a,edSel.b); if(sel.duration<0.02){toast('בחר קטע');return;} playBuffer(sel,0); });
-$('#edPlayAll').addEventListener('click',()=>{ if(!edClips.length)return; if(edPlaySrc){stopEdPlay();return;} const merged=concatBuffers(edClips.map(c=>c.buffer)); playBuffer(merged,0); });
+function playOneBuffer(buffer){
+  stopEdPlay(); const ctx=actx(); if(ctx.state==='suspended')ctx.resume();
+  const src=ctx.createBufferSource(); src.buffer=buffer; src.connect(ctx.destination); src.start(0); edPlaySrc=src; edPlayhead=-1;
+  src.onended=()=>{ if(edPlaySrc===src) stopEdPlay(); };
+}
+$('#edPlay').addEventListener('click',()=>{ if(!edActive)return; if(edPlaySrc){stopEdPlay();return;} const a=Math.min(edSel.a,edSel.b),b=Math.max(edSel.a,edSel.b); if(b-a<0.02){toast('בחר קטע');return;} playRegion(a,b,edLoop); });
+$('#edPlayAll').addEventListener('click',()=>{ if(!edClips.length)return; if(edPlaySrc){stopEdPlay();return;} playOneBuffer(concatBuffers(edClips.map(c=>c.buffer))); });
 $('#edStop').addEventListener('click',stopEdPlay);
+$('#edLoop').addEventListener('click',()=>{ edLoop=!edLoop; $('#edLoop').classList.toggle('on',edLoop); if(edLoop&&edPlaySrc){ const a=Math.min(edSel.a,edSel.b),b=Math.max(edSel.a,edSel.b); playRegion(a,b,true); } });
 
 /* clips list */
 function renderClips(){
@@ -919,10 +1007,10 @@ function renderClips(){
       <button class="mini" data-a="dn" ${i===edClips.length-1?'disabled':''}>↓</button>
       <button class="mini" data-a="pl">▶︎</button>
       <button class="mini" data-a="rm" ${edClips.length<=1?'disabled':''}>🗑</button>`;
-    el.querySelector('[data-a=up]').addEventListener('click',()=>{ if(i>0){[edClips[i-1],edClips[i]]=[edClips[i],edClips[i-1]]; edActive=edClips[0]; renderClips(); drawWave();} });
-    el.querySelector('[data-a=dn]').addEventListener('click',()=>{ if(i<edClips.length-1){[edClips[i+1],edClips[i]]=[edClips[i],edClips[i+1]]; edActive=edClips[0]; renderClips(); drawWave();} });
-    el.querySelector('[data-a=pl]').addEventListener('click',()=>playBuffer(c.buffer,0));
-    el.querySelector('[data-a=rm]').addEventListener('click',()=>{ if(edClips.length>1){edClips.splice(i,1); edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; renderClips(); drawWave();} });
+    el.querySelector('[data-a=up]').addEventListener('click',()=>{ if(i>0){pushUndo();[edClips[i-1],edClips[i]]=[edClips[i],edClips[i-1]]; edActive=edClips[0]; renderClips(); drawWave();} });
+    el.querySelector('[data-a=dn]').addEventListener('click',()=>{ if(i<edClips.length-1){pushUndo();[edClips[i+1],edClips[i]]=[edClips[i],edClips[i+1]]; edActive=edClips[0]; renderClips(); drawWave();} });
+    el.querySelector('[data-a=pl]').addEventListener('click',()=>playOneBuffer(c.buffer));
+    el.querySelector('[data-a=rm]').addEventListener('click',()=>{ if(edClips.length>1){pushUndo();edClips.splice(i,1); edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; renderClips(); drawWave();} });
     box.appendChild(el);
   });
 }
@@ -1102,7 +1190,86 @@ async function loadFFmpeg(){
 }
 
 /* ============ SONG → VIDEO (MP3 + image -> MP4) ============ */
-let tvAudio=null, tvImage=null, tvAspect='16:9';
+let tvAudio=null, tvImage=null, tvAspect='16:9', tvSyncMode='manual', tvLyricTimes=[];
+function tvLines(){ return $('#tvLyrics').value.split('\n').map(s=>s.trim()).filter(Boolean); }
+$('#tvLyrics').addEventListener('input',()=>{ const has=tvLines().length>0; $('#tvLyricsOpts').classList.toggle('hide',!has); tvLyricTimes=[]; $('#tvSyncStatus').textContent=''; });
+function refreshSyncBtn(){ const btn=$('#tvSyncBtn'); const he=state.lang==='he'; if(tvSyncMode==='manual'){ btn.style.display='block'; btn.innerHTML='🎯 '+(he?'סנכרן מילים ידנית':'Sync manually'); } else if(tvSyncMode==='ai'){ btn.style.display='block'; btn.innerHTML='🤖 '+(he?'סנכרן עם בינה':'Sync with AI'); } else { btn.style.display='none'; } }
+$$('#tvSyncSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvSyncSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvSyncMode=b.dataset.sync; refreshSyncBtn(); }));
+$('#tvSyncBtn').addEventListener('click',()=>{ const lines=tvLines(); if(!lines.length){toast('הדבק קודם מילים');return;} if(!tvAudio){toast('בחר קודם קובץ שמע');return;} if(tvSyncMode==='ai') runAiSync(lines); else openLyricSync(lines); });
+function updateSyncStatus(){ const el=$('#tvSyncStatus'); if(!el)return; const n=tvLyricTimes.filter(t=>t!=null).length; el.textContent=n?(state.lang==='he'?('✓ מסונכרן: '+n+' שורות'):('✓ Synced: '+n+' lines')):''; }
+function openLyricSync(lines){
+  const he=state.lang==='he';
+  const times=new Array(lines.length).fill(null); let idx=0;
+  const au=new Audio(URL.createObjectURL(tvAudio));
+  const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">
+    <b>🎯 ${he?'סנכרון מילים':'Sync lyrics'}</b>
+    <div class="hint">${he?'נגן את השיר, ובכל תחילת שורה לחץ "תפוס עכשיו". אפשר להשהות ולתקן.':'Play the song and tap "Capture now" at the start of each line.'}</div>
+    <div style="text-align:center;margin:12px 0">
+      <div style="font-size:12px;color:var(--muted)" id="lsCount"></div>
+      <div id="lsCur" style="font-size:20px;font-weight:800;margin:6px 0;min-height:26px"></div>
+      <div id="lsNext" style="font-size:15px;color:var(--muted);min-height:20px"></div>
+    </div>
+    <div class="prog"><div id="lsBar" style="width:0%"></div></div>
+    <div id="lsTime" class="hint" style="text-align:center"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost sm" id="lsPlay" style="flex:1">▶︎ ${he?'נגן':'Play'}</button>
+      <button class="btn sm" id="lsTap" style="flex:2">⏱ ${he?'תפוס עכשיו':'Capture now'}</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn ghost sm" id="lsReset" style="flex:1">↺ ${he?'התחל מחדש':'Restart'}</button>
+      <button class="btn sm" id="lsDone" style="flex:1">✓ ${he?'סיום':'Done'}</button>
+    </div>
+    <button class="btn ghost sm" id="lsClose" style="width:100%;margin-top:8px">${he?'ביטול':'Cancel'}</button>
+  </div>`;
+  document.body.appendChild(bg);
+  const q=s=>bg.querySelector(s);
+  const upd=()=>{ q('#lsCount').textContent=(he?'שורה ':'Line ')+Math.min(idx+1,lines.length)+' / '+lines.length; q('#lsCur').textContent=idx<lines.length?lines[idx]:(he?'— סיימת, אפשר "סיום" —':'— done —'); q('#lsNext').textContent=lines[idx+1]||''; };
+  upd();
+  au.addEventListener('timeupdate',()=>{ if(au.duration){ q('#lsBar').style.width=(au.currentTime/au.duration*100)+'%'; q('#lsTime').textContent=fmtTime(au.currentTime)+' / '+fmtTime(au.duration); } });
+  q('#lsPlay').addEventListener('click',()=>{ if(au.paused){au.play();q('#lsPlay').textContent='⏸ '+(he?'השהה':'Pause');} else {au.pause();q('#lsPlay').textContent='▶︎ '+(he?'נגן':'Play');} });
+  q('#lsTap').addEventListener('click',()=>{ if(idx<lines.length){ times[idx]=au.currentTime; idx++; upd(); } });
+  q('#lsReset').addEventListener('click',()=>{ idx=0; for(let i=0;i<times.length;i++)times[i]=null; au.currentTime=0; upd(); });
+  const finish=(save)=>{ try{au.pause();}catch(e){} if(save){ tvLyricTimes=times.slice(); updateSyncStatus(); toast(he?'סונכרן ✓':'Synced ✓'); } bg.remove(); };
+  q('#lsDone').addEventListener('click',()=>finish(true));
+  q('#lsClose').addEventListener('click',()=>finish(false));
+  bg.addEventListener('click',e=>{ if(e.target===bg) finish(false); });
+}
+function autoTimes(lines,songDur){ const n=lines.length; const start=Math.min(2,songDur*0.05); const span=Math.max(1,songDur-start); return lines.map((_,i)=>start+span*i/n); }
+function loadImageEl(file){ return new Promise((res,rej)=>{ const img=new Image(); const u=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(u);res(img);}; img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('img'));}; img.src=u; }); }
+function wrapText(ctx,text,maxW){ const words=(text||'').split(/\s+/); const out=[]; let cur=''; for(const w of words){ const test=cur?cur+' '+w:w; if(ctx.measureText(test).width>maxW && cur){out.push(cur);cur=w;} else cur=test; } if(cur)out.push(cur); return out; }
+async function renderFrame(img,cur,next,W,H,bg){
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  const r=Math.min(W/img.width,H/img.height), iw=img.width*r, ih=img.height*r;
+  ctx.drawImage(img,(W-iw)/2,(H-ih)/2,iw,ih);
+  const g=ctx.createLinearGradient(0,H*0.45,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.78)'); ctx.fillStyle=g; ctx.fillRect(0,H*0.45,W,H*0.55);
+  ctx.textAlign='center'; try{ctx.direction='rtl';}catch(e){}
+  const maxW=W*0.86, cx=W/2;
+  const curSize=Math.round(H*0.072); ctx.font='700 '+curSize+'px system-ui,Arial,sans-serif';
+  const curLines=wrapText(ctx,cur,maxW);
+  const nextSize=Math.round(H*0.048);
+  let y=H*0.70;
+  ctx.shadowColor='rgba(0,0,0,0.85)'; ctx.shadowBlur=Math.round(H*0.012); ctx.fillStyle='#ffffff';
+  curLines.forEach(l=>{ ctx.fillText(l,cx,y); y+=curSize*1.15; });
+  if(next){ ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='600 '+nextSize+'px system-ui,Arial,sans-serif'; y+=nextSize*0.35;
+    wrapText(ctx,next,maxW).forEach(l=>{ ctx.fillText(l,cx,y); y+=nextSize*1.15; }); }
+  ctx.shadowBlur=0;
+  return await new Promise(res=>cv.toBlob(res,'image/png'));
+}
+async function renderLyricFrames(imgFile,lines,times,W,H,bg,songDur){
+  const img=await loadImageEl(imgFile);
+  const pts=lines.map((text,i)=>({text,t:times[i]})).filter(p=>p.t!=null&&isFinite(p.t)).sort((a,b)=>a.t-b.t);
+  const frames=[];
+  if(!pts.length){ frames.push({blob:await renderFrame(img,'','',W,H,bg),dur:Math.max(1,songDur)}); return frames; }
+  if(pts[0].t>0.05) frames.push({blob:await renderFrame(img,'',pts[0].text,W,H,bg),dur:pts[0].t});
+  for(let i=0;i<pts.length;i++){
+    const cur=pts[i].text, next=(i+1<pts.length)?pts[i+1].text:'';
+    const dur=(i+1<pts.length)?(pts[i+1].t-pts[i].t):Math.max(1.5,songDur-pts[i].t);
+    frames.push({blob:await renderFrame(img,cur,next,W,H,bg),dur:Math.max(0.3,dur)});
+  }
+  return frames;
+}
 $('#tvPickAudio').addEventListener('click',()=>{
   const inp=document.createElement('input'); inp.type='file'; inp.accept='audio/*,video/*';
   inp.onchange=()=>{ if(inp.files[0]){ tvAudio=inp.files[0]; $('#tvAudioName').textContent='✓ '+tvAudio.name; tvCheck(); } }; inp.click();
@@ -1119,13 +1286,19 @@ $('#tvRun').addEventListener('click',async()=>{
   if(!(tvAudio&&tvImage))return;
   const prog=$('#tvProg'), bar=prog.firstElementChild, st=$('#tvStatus');
   const waveform=$('#tvWave').checked, bg=$('#tvBg').value;
+  const lines=tvLines();
+  let lyrics=null;
+  if(lines.length){
+    lyrics={lines, mode:tvSyncMode, times:tvLyricTimes};
+    if(tvSyncMode==='manual' && tvLyricTimes.filter(t=>t!=null).length===0){ toast(state.lang==='he'?'לא סונכרן ידנית — נשתמש בחלוקה אוטומטית':'Not synced — using auto timing'); }
+  }
   try{
     prog.classList.remove('hide'); bar.style.width='5%';
     st.innerHTML='טוען מנוע וידאו (בפעם הראשונה זה כבד — כ-30MB)…';
     await loadFFmpeg(); bar.style.width='25%';
-    st.textContent=waveform?'יוצר וידאו עם גל קול (זה לוקח יותר זמן)…':'יוצר וידאו…';
+    st.textContent=lines.length?'יוצר וידאו עם כתוביות…':(waveform?'יוצר וידאו עם גל קול (זה לוקח יותר זמן)…':'יוצר וידאו…');
     currentProg=(p)=>{ bar.style.width=(25+p*70)+'%'; };
-    const blob=await makeSongVideo(tvAudio,tvImage,{aspect:tvAspect,bg,waveform});
+    const blob=await makeSongVideo(tvAudio,tvImage,{aspect:tvAspect,bg,waveform,lyrics});
     bar.style.width='100%';
     const base=(tvAudio.name.replace(/\.[^.]+$/,''))||'song';
     download(blob,base+'.mp4');
@@ -1136,7 +1309,7 @@ $('#tvRun').addEventListener('click',async()=>{
   finally{ currentProg=null; }
 });
 
-async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',waveform=false}){
+async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',waveform=false,lyrics=null}){
   await loadFFmpeg();
   const {fetchFile}=ffmpegUtil;
   const dims={'16:9':[1280,720],'1:1':[720,720],'9:16':[720,1280]}[aspect]||[1280,720];
@@ -1144,6 +1317,22 @@ async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',wavef
   const imgExt=(imgFile.name.match(/\.[^.]+$/)||['.jpg'])[0];
   const audExt=(audioFile.name.match(/\.[^.]+$/)||['.mp3'])[0];
   const imgName='cover'+imgExt, audName='track'+audExt;
+
+  // ---- lyrics path: bake each subtitle state to a PNG, stitch with concat + audio ----
+  if(lyrics && lyrics.lines && lyrics.lines.length){
+    const ab=await audioFile.arrayBuffer(); const abuf=await actx().decodeAudioData(ab.slice(0)); const songDur=abuf.duration;
+    const validManual = lyrics.times && lyrics.times.filter(t=>t!=null).length;
+    const times=(lyrics.mode!=='auto' && validManual) ? lyrics.times : autoTimes(lyrics.lines,songDur);
+    const frames=await renderLyricFrames(imgFile,lyrics.lines,times,W,H,bg,songDur);
+    let list='';
+    for(let i=0;i<frames.length;i++){ await ffmpeg.writeFile('f'+i+'.png', await fetchFile(frames[i].blob)); list+="file 'f"+i+".png'\nduration "+frames[i].dur.toFixed(3)+"\n"; }
+    list+="file 'f"+(frames.length-1)+".png'\n";
+    await ffmpeg.writeFile('list.txt', new TextEncoder().encode(list));
+    await ffmpeg.writeFile(audName, await fetchFile(audioFile));
+    await ffmpeg.exec(['-f','concat','-safe','0','-i','list.txt','-i',audName,'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-r','12','-c:a','aac','-b:a','192k','-shortest','out.mp4']);
+    const data=await ffmpeg.readFile('out.mp4'); return new Blob([data.buffer],{type:'video/mp4'});
+  }
+
   await ffmpeg.writeFile(imgName, await fetchFile(imgFile));
   await ffmpeg.writeFile(audName, await fetchFile(audioFile));
   const pad=`scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=${bgHex},setsar=1`;
@@ -1181,9 +1370,183 @@ $('#aboutStore').addEventListener('click',()=>window.open('https://barakaflalo.g
 $('#aboutShareApp').addEventListener('click',async()=>{ try{ if(navigator.share) await navigator.share({title:'אולפן AppNest',text:(state.name?state.name+' · ':'')+'אולפן AppNest',url:location.href}); else { await navigator.clipboard.writeText(location.href); toast('הקישור הועתק'); } }catch(e){} });
 $('#aboutFeedback').addEventListener('click',()=>{ location.href='mailto:appnest55@gmail.com?subject='+encodeURIComponent('משוב — אולפן AppNest v1.2'); });
 $('#aboutPrivacy').addEventListener('click',()=>window.open('privacy_policy.html','_blank'));
+$('#aiSetupBtn').addEventListener('click',openAiSetup);
 $('#langBtn').addEventListener('click',()=>{ state.lang=state.lang==='he'?'en':'he'; localStorage.setItem(PREFIX+'lang',state.lang); $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang)); applyLang(); });
 $('#themeBtn').addEventListener('click',()=>{ state.theme=state.theme==='night'?'day':'night'; localStorage.setItem(PREFIX+'theme',state.theme); $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme)); applyTheme(); });
 $('#paletteBtn').addEventListener('click',()=>{ const i=PALETTES.indexOf(state.palette); state.palette=PALETTES[(i+1)%PALETTES.length]; localStorage.setItem(PREFIX+'palette',state.palette); applyPalette(); });
+
+/* ============ BYOK AI (smart sync) ============ */
+let AI = {};
+try{ AI = JSON.parse(localStorage.getItem(PREFIX+'ai')||'{}'); }catch(e){ AI={}; }
+function saveAI(){ localStorage.setItem(PREFIX+'ai', JSON.stringify(AI)); }
+function cleanKey(k){ return (k||'').split(/[,\n]/)[0].trim(); }
+function aiKey(){ return cleanKey(AI.provider==='openai'?AI.openaiKey:AI.geminiKey); }
+function aiConnected(){ return !!aiKey(); }
+function updateAiStatus(){
+  const el=$('#aiStatusLine'); if(!el)return; const he=state.lang==='he';
+  if(aiConnected()){ const nm=AI.provider==='openai'?'OpenAI':'Gemini'; el.innerHTML='<span style="color:var(--green)">●</span> '+(he?'מחובר: ':'Connected: ')+nm; }
+  else el.innerHTML='<span style="color:var(--muted)">●</span> '+(he?'לא מחובר':'Not connected');
+}
+function fileToBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(file); }); }
+async function transcribeOpenAI(file){
+  const key=cleanKey(AI.openaiKey); if(!key) throw new Error(state.lang==='he'?'אין מפתח OpenAI':'No OpenAI key');
+  if(file.size>25*1024*1024) throw new Error(state.lang==='he'?'הקובץ גדול מ-25MB (מגבלת OpenAI)':'File over 25MB (OpenAI limit)');
+  const fd=new FormData(); fd.append('file',file,file.name||'audio'); fd.append('model','whisper-1'); fd.append('response_format','verbose_json'); fd.append('timestamp_granularities[]','segment');
+  const r=await fetch('https://api.openai.com/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+key},body:fd});
+  if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error((e.error&&e.error.message)||('HTTP '+r.status)); }
+  const d=await r.json(); return (d.segments||[]).map(s=>({start:+s.start,text:s.text||''}));
+}
+async function transcribeGemini(file){
+  const key=cleanKey(AI.geminiKey); if(!key) throw new Error(state.lang==='he'?'אין מפתח Gemini':'No Gemini key');
+  if(file.size>18*1024*1024) throw new Error(state.lang==='he'?'גדול מדי ל-Gemini inline (~18MB). קצר קודם.':'Too large for Gemini inline (~18MB)');
+  const b64=await fileToBase64(file);
+  const prompt='Transcribe the sung or spoken audio. Return ONLY a JSON array of objects {"start": <seconds as a number>, "text": "<phrase>"} for each vocal line/phrase, in time order. No markdown, no commentary.';
+  const models=(AI.geminiModel?[AI.geminiModel]:[]).concat(['gemini-flash-latest','gemini-2.5-flash','gemini-3-flash']);
+  let lastErr;
+  for(const m of models){
+    try{
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:file.type||'audio/mpeg',data:b64}}]}]})});
+      if(!r.ok){ const e=await r.json().catch(()=>({})); const msg=(e.error&&e.error.message)||('HTTP '+r.status); if(/not found|not available|404|does not exist/i.test(msg)){ lastErr=new Error(msg); continue; } throw new Error(msg); }
+      const d=await r.json();
+      const parts=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts)||[];
+      const txt=parts.map(p=>p.text||'').join('').replace(/```json|```/g,'').trim();
+      let arr; try{ arr=JSON.parse(txt); }catch(_){ const mm=txt.match(/\[[\s\S]*\]/); if(!mm) throw new Error('bad JSON from Gemini'); arr=JSON.parse(mm[0]); }
+      return arr.filter(x=>x&&isFinite(x.start)).map(x=>({start:+x.start,text:String(x.text||'')}));
+    }catch(e){ lastErr=e; if(!/not found|not available|404|does not exist/i.test(e.message||'')) break; }
+  }
+  throw lastErr||new Error('Gemini transcription failed');
+}
+function aiSyncTimes(lines,segments,songDur){
+  let starts=(segments||[]).map(s=>s.start).filter(t=>isFinite(t)&&t>=0&&t<=songDur+0.5).sort((a,b)=>a-b);
+  starts=starts.filter((t,i)=>i===0||t>starts[i-1]+0.05);
+  if(starts.length<2) return autoTimes(lines,songDur);
+  const N=lines.length;
+  return lines.map((_,i)=>{ const pos=i/N*starts.length; const k=Math.min(starts.length-1,Math.floor(pos)); const frac=pos-k; const a=starts[k], b=(k+1<starts.length?starts[k+1]:songDur); return Math.min(songDur, a+frac*(b-a)); });
+}
+async function runAiSync(lines){
+  if(!aiConnected()){ toast(state.lang==='he'?'חבר קודם מפתח בינה בהגדרות':'Connect an AI key in Settings first'); go('settings'); return; }
+  const st=$('#tvSyncStatus'); const he=state.lang==='he';
+  st.textContent=he?'הבינה מאזינה לשיר… (יכול לקחת דקה)':'AI is listening… (may take a minute)';
+  try{
+    const segs = AI.provider==='openai' ? await transcribeOpenAI(tvAudio) : await transcribeGemini(tvAudio);
+    const ab=await tvAudio.arrayBuffer(); const abuf=await actx().decodeAudioData(ab.slice(0)); const songDur=abuf.duration;
+    tvLyricTimes = aiSyncTimes(lines,segs,songDur);
+    updateSyncStatus();
+    st.textContent=he?('✓ סונכרן בעזרת בינה ('+segs.length+' מקטעים). אפשר לעבור לידני כדי לתקן.'):('✓ AI-synced ('+segs.length+' segments)');
+  }catch(e){ console.error(e); st.textContent='✗ '+(e.message||e); }
+}
+const AI_PROVIDERS={
+  gemini:{ ph:'AIza…', link:'https://aistudio.google.com/app/apikey', steps:['היכנס ל-aistudio.google.com/app/apikey','התחבר עם חשבון Google','לחץ "Get API Key" והעתק','הדבק כאן — יש שכבה חינמית ללא כרטיס'] },
+  openai:{ ph:'sk-…', link:'https://platform.openai.com/api-keys', steps:['היכנס ל-platform.openai.com/api-keys','צור Secret key','הוסף אמצעי תשלום ב-Billing','הדבק כאן — תמלול Whisper מדויק'] }
+};
+function openAiSetup(){
+  const he=state.lang==='he'; const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">
+    <b>🔑 ${he?'חיבור בינה':'AI connection'}</b>
+    <div class="seg" id="aiProvSeg" style="margin-top:10px">
+      <button data-p="gemini">Gemini <span class="badge">FREE</span></button>
+      <button data-p="openai">OpenAI</button>
+    </div>
+    <div id="aiSteps" class="hint" style="margin-top:8px"></div>
+    <label class="field">${he?'מפתח API':'API key'}</label>
+    <input type="password" id="aiKeyInput" placeholder="">
+    <label class="field">${he?'מודל (לא חובה)':'Model (optional)'}</label>
+    <div class="row tight">
+      <select id="aiModelSel" style="flex:1"></select>
+      <button class="btn ghost sm" id="aiRefresh">🔄</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" id="aiSave" style="flex:1">💾 ${he?'שמור':'Save'}</button>
+      <button class="btn ghost sm" id="aiTest" style="flex:1">✓ ${he?'בדוק':'Test'}</button>
+    </div>
+    <button class="btn red sm" id="aiDisc" style="width:100%;margin-top:8px;color:var(--red);border-color:var(--red)">${he?'נתק':'Disconnect'}</button>
+    <button class="btn ghost sm" id="aiClose" style="width:100%;margin-top:8px">${he?'סגור':'Close'}</button>
+    <div class="hint" id="aiMsg" style="margin-top:8px"></div>
+  </div>`;
+  document.body.appendChild(bg);
+  const q=s=>bg.querySelector(s); let cur=AI.provider||'gemini';
+  const renderProv=()=>{
+    bg.querySelectorAll('#aiProvSeg button').forEach(x=>x.classList.toggle('on',x.dataset.p===cur));
+    const info=AI_PROVIDERS[cur];
+    q('#aiSteps').innerHTML=info.steps.map((s,i)=>(i+1)+'. '+s).join('<br>')+`<br><a class="link" href="${info.link}" target="_blank">${info.link}</a>`;
+    q('#aiKeyInput').placeholder=info.ph; q('#aiKeyInput').value = cur==='openai'?(AI.openaiKey||''):(AI.geminiKey||'');
+    const savedModel=cur==='openai'?AI.openaiModel:AI.geminiModel;
+    q('#aiModelSel').innerHTML=`<option value="">${he?'ברירת מחדל':'Default'}</option>`+(savedModel?`<option value="${savedModel}" selected>${savedModel}</option>`:'');
+  };
+  renderProv();
+  bg.querySelectorAll('#aiProvSeg button').forEach(b=>b.addEventListener('click',()=>{ cur=b.dataset.p; renderProv(); }));
+  q('#aiRefresh').addEventListener('click',async()=>{
+    const key=cleanKey(q('#aiKeyInput').value); if(!key){ q('#aiMsg').textContent=he?'הזן מפתח קודם':'Enter a key first'; return; }
+    q('#aiMsg').textContent=he?'טוען מודלים…':'Loading models…';
+    try{ let list=[];
+      if(cur==='gemini'){ const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(key)); const d=await r.json(); if(!r.ok)throw new Error((d.error&&d.error.message)||'HTTP '+r.status); list=(d.models||[]).filter(m=>m.supportedGenerationMethods&&m.supportedGenerationMethods.indexOf('generateContent')>-1&&/gemini/.test(m.name||'')).map(m=>m.name.replace('models/','')); }
+      else { const r=await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+key}}); const d=await r.json(); if(!r.ok)throw new Error((d.error&&d.error.message)||'HTTP '+r.status); list=(d.data||[]).map(m=>m.id).filter(x=>/whisper|transcribe/i.test(x)).sort(); if(!list.length)list=['whisper-1']; }
+      const sel=q('#aiModelSel'); const val=sel.value; sel.innerHTML=`<option value="">${he?'ברירת מחדל':'Default'}</option>`+list.map(m=>`<option value="${m}">${m}</option>`).join(''); sel.value=val; q('#aiMsg').textContent=he?('✓ '+list.length+' מודלים'):('✓ '+list.length+' models');
+    }catch(e){ q('#aiMsg').textContent='✗ '+(e.message||e); }
+  });
+  q('#aiSave').addEventListener('click',()=>{
+    const key=cleanKey(q('#aiKeyInput').value); AI.provider=cur;
+    if(cur==='openai'){ AI.openaiKey=key; AI.openaiModel=q('#aiModelSel').value||''; } else { AI.geminiKey=key; AI.geminiModel=q('#aiModelSel').value||''; }
+    saveAI(); updateAiStatus(); toast(he?'נשמר ✓':'Saved ✓'); bg.remove();
+  });
+  q('#aiTest').addEventListener('click',async()=>{
+    const key=cleanKey(q('#aiKeyInput').value); if(!key){ q('#aiMsg').textContent=he?'הזן מפתח':'Enter a key'; return; }
+    q('#aiMsg').textContent=he?'בודק…':'Testing…';
+    try{ if(cur==='gemini'){ const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(key)); if(!r.ok)throw new Error('HTTP '+r.status); }
+      else { const r=await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+key}}); if(!r.ok)throw new Error('HTTP '+r.status); }
+      q('#aiMsg').innerHTML='<span style="color:var(--green)">✓ '+(he?'המפתח תקין':'Key OK')+'</span>';
+    }catch(e){ q('#aiMsg').textContent='✗ '+(e.message||e); }
+  });
+  q('#aiDisc').addEventListener('click',()=>{ if(cur==='openai'){AI.openaiKey='';} else {AI.geminiKey='';} saveAI(); updateAiStatus(); renderProv(); q('#aiMsg').textContent=he?'נותק':'Disconnected'; });
+  q('#aiClose').addEventListener('click',()=>bg.remove());
+  bg.addEventListener('click',e=>{ if(e.target===bg) bg.remove(); });
+}
+
+/* ============ VIDEO TRIM ============ */
+let vtFile=null, vtDur=0;
+$('#vtPick').addEventListener('click',()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='video/*'; inp.onchange=()=>{ if(inp.files[0]) setVtFile(inp.files[0]); }; inp.click(); });
+function setVtFile(f){ vtFile=f; $('#vtBody').classList.remove('hide'); const v=$('#vtVideo'); v.src=URL.createObjectURL(f); v.onloadedmetadata=()=>{ vtDur=v.duration||0; $('#vtStart').value=0; $('#vtEnd').value=1000; updateVtLabels(); }; }
+function vtT(slider){ return (+$('#'+slider).value)/1000*vtDur; }
+function updateVtLabels(){ let a=vtT('vtStart'), b=vtT('vtEnd'); if(a>b){ const t=a;a=b;b=t; } $('#vtStartL').textContent=fmtTimeMs(a); $('#vtEndL').textContent=fmtTimeMs(b); $('#vtLen').textContent=(state.lang==='he'?'אורך הקטע: ':'Clip length: ')+fmtTimeMs(Math.max(0,b-a)); }
+$('#vtStart').addEventListener('input',()=>{ const v=$('#vtVideo'); v.currentTime=vtT('vtStart'); updateVtLabels(); });
+$('#vtEnd').addEventListener('input',()=>{ const v=$('#vtVideo'); v.currentTime=vtT('vtEnd'); updateVtLabels(); });
+$('#vtRun').addEventListener('click',async()=>{
+  if(!vtFile)return; let a=vtT('vtStart'), b=vtT('vtEnd'); if(a>b){const t=a;a=b;b=t;} if(b-a<0.2){ toast(state.lang==='he'?'הקטע קצר מדי':'Clip too short'); return; }
+  const prog=$('#vtProg'), bar=prog.firstElementChild, st=$('#vtStatus'); const he=state.lang==='he';
+  try{
+    prog.classList.remove('hide'); bar.style.width='10%'; st.innerHTML=he?'טוען מנוע (~30MB בפעם הראשונה)…':'Loading engine…';
+    await loadFFmpeg(); bar.style.width='30%'; st.textContent=he?'חותך…':'Trimming…';
+    currentProg=(p)=>{ bar.style.width=(30+p*65)+'%'; };
+    const {fetchFile}=ffmpegUtil; const ext=(vtFile.name.match(/\.[^.]+$/)||['.mp4'])[0]; const inName='in'+ext;
+    await ffmpeg.writeFile(inName, await fetchFile(vtFile));
+    // input-seek (-ss before -i) + -t duration + re-encode (no -c copy) = accurate cut
+    await ffmpeg.exec(['-ss',a.toFixed(3),'-i',inName,'-t',(b-a).toFixed(3),'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac','-b:a','192k','out.mp4']);
+    const data=await ffmpeg.readFile('out.mp4'); bar.style.width='100%';
+    const blob=new Blob([data.buffer],{type:'video/mp4'});
+    const base=(vtFile.name.replace(/\.[^.]+$/,''))||'clip';
+    download(blob,base+'_trim.mp4');
+    await dbPut({id:'t'+Date.now(),kind:'video',type:'video/mp4',blob,size:blob.size,name:'חתוך: '+base,created:Date.now()});
+    st.textContent=he?'✓ נחתך ונשמר בספרייה':'✓ Trimmed & saved';
+    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},900);
+  }catch(e){ console.error(e); st.textContent='✗ '+(e.message||e); prog.classList.add('hide'); }
+  finally{ currentProg=null; }
+});
+
+/* ============ DRAG & DROP ============ */
+function enableDrop(el,handler){
+  if(!el)return;
+  el.addEventListener('dragover',e=>{ e.preventDefault(); el.classList.add('drag'); });
+  el.addEventListener('dragleave',e=>{ if(e.target===el) el.classList.remove('drag'); });
+  el.addEventListener('drop',e=>{ e.preventDefault(); el.classList.remove('drag'); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handler(f); });
+}
+enableDrop($('#screen-editor'),f=>{ go('editor'); loadFileIntoEditor(f); });
+enableDrop($('#screen-convert'),f=>{ setConvFile(f); });
+enableDrop($('#screen-vtrim'),f=>{ if(f.type.startsWith('video')) setVtFile(f); else toast(state.lang==='he'?'גרור קובץ וידאו':'Drop a video file'); });
+enableDrop($('#screen-tovideo'),f=>{
+  if(f.type.startsWith('image')){ tvImage=f; const u=URL.createObjectURL(f); $('#tvImgPrev').innerHTML=`<img src="${u}" style="max-height:140px;border-radius:12px;border:1px solid var(--line)">`; toast('התמונה נטענה ✓'); }
+  else { tvAudio=f; $('#tvAudioName').textContent='✓ '+f.name; toast('השמע נטען ✓'); }
+  tvCheck();
+});
 
 /* ============ INIT ============ */
 (async function init(){
@@ -1194,6 +1557,7 @@ $('#paletteBtn').addEventListener('click',()=>{ const i=PALETTES.indexOf(state.p
   $$('#paletteSeg button').forEach(x=>x.classList.toggle('on',x.dataset.pal===state.palette));
   try{ await openDB(); }catch(e){ console.warn('IndexedDB unavailable',e); }
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+  updateAiStatus(); refreshSyncBtn();
   go('home');
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   window.addEventListener('resize',()=>{ if(edActive && !$('#editorMain').classList.contains('hide')) drawWave(); });
