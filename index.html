@@ -179,12 +179,26 @@
 
       <div id="recStage" style="margin-top:14px">
         <div class="timer" id="recTimer">00:00</div>
-        <div class="row">
-          <button class="btn" id="startBtn" data-i="startRec">● התחל הקלטה</button>
+        <!-- idle: choose source -->
+        <div class="row" id="recIdle">
+          <button class="btn" id="armBtn" data-i="armRec">🎯 בחר מקור והתכונן</button>
         </div>
-        <div class="row hide" id="recControls">
-          <button class="btn ghost sm" id="pauseBtn" style="flex:1" data-i="pause">⏸ השהה</button>
-          <button class="btn red sm" id="stopBtn" style="flex:2" data-i="stop">■ עצור ושמור</button>
+        <!-- armed: ready, waiting for user to start -->
+        <div id="recArmed" class="hide">
+          <div class="hint" id="armedHint" style="text-align:center;color:var(--gold)" data-i="armedMsg">✓ מוכן! נגן את השיר ב-Suno, ואז לחץ "התחל".</div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" id="beginBtn" style="flex:2" data-i="beginRec">● התחל הקלטה</button>
+            <button class="btn ghost sm" id="cancelArmBtn" style="flex:1" data-i="cancelArm">✕ בטל</button>
+          </div>
+        </div>
+        <!-- recording: transport controls -->
+        <div id="recControls" class="hide">
+          <div class="row tight">
+            <button class="btn ghost sm" id="pauseBtn" style="flex:1" data-i="pause">⏸ השהה</button>
+            <button class="btn ghost sm" id="restartBtn" style="flex:1" data-i="restartRec">🔄 התחל מחדש</button>
+            <button class="btn ghost sm" id="discardBtn" style="flex:1" data-i="discardRec">🗑 מחק</button>
+          </div>
+          <button class="btn red" id="stopBtn" style="width:100%;margin-top:8px" data-i="stop">■ עצור ושמור</button>
         </div>
       </div>
       <video class="prev hide" id="livePrev" muted></video>
@@ -332,6 +346,13 @@
         </div>
         <button class="btn ghost sm" id="tvSyncBtn" style="width:100%;margin-top:8px" data-i="tvSyncBtnL">🎯 סנכרן מילים ידנית</button>
         <div class="hint" id="tvSyncStatus"></div>
+        <label class="field" data-i="tvStyleL">סגנון כתוביות</label>
+        <div class="seg" id="tvStyleSeg">
+          <button data-st="single" data-i="tvStSingle">שורה יחידה</button>
+          <button data-st="classic" class="on" data-i="tvStClassic">קלאסי</button>
+          <button data-st="karaoke" data-i="tvStKaraoke">קריוקי</button>
+          <button data-st="scroll" data-i="tvStScroll">מגילה</button>
+        </div>
       </div>
 
       <button class="btn" id="tvRun" style="margin-top:14px" disabled data-i="tvRunB">🎬 צור וידאו</button>
@@ -405,7 +426,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v1.5</span></b>
+        <b>אולפן AppNest <span class="badge">v1.6</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -482,6 +503,9 @@ const I18N={
     hintVideo:"Records the screen with no sound. A picker will open to choose what to capture.",
     hintBoth:"Records screen + system sound. In the picker, tick \"Share audio\".",
     startRec:"● Start recording", pause:"⏸ Pause", resume:"▶︎ Resume", stop:"■ Stop & save",
+    armRec:"🎯 Pick source & get ready", armedMsg:"✓ Ready! Play the song in Suno, then hit Start.",
+    beginRec:"● Start recording", cancelArm:"✕ Cancel", restartRec:"🔄 Restart", discardRec:"🗑 Discard",
+    tvStyleL:"Subtitle style", tvStSingle:"Single line", tvStClassic:"Classic", tvStKaraoke:"Karaoke", tvStScroll:"Scroll",
     screenshotT:"📸 Screenshot", screenshotH:"Captures a still image of the screen (no sound). Saved as PNG.",
     takeShot:"📸 Capture screen",
     myLib:"My library",
@@ -590,122 +614,120 @@ function pickMime(kind){
 }
 
 /* ============ RECORDING ============ */
-let recMode='audio', mediaRecorder=null, recChunks=[], recStream=null, recTimerInt=null, recStart=0, recPausedAt=0, recPausedTotal=0, mixCtx=null;
+let recMode='audio', mediaRecorder=null, recChunks=[], recStream=null, recTimerInt=null, recStart=0, recPausedAt=0, recPausedTotal=0, mixCtx=null, recAction='save', recKind='audio';
+const NO_PROCESSING={ echoCancellation:false, noiseSuppression:false, autoGainControl:false };
 
 $$('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{
   $$('#modeSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   recMode=b.dataset.mode; updateModeHint();
 }));
-function updateModeHint(){
-  const map={audio:'hintAudio',video:'hintVideo',both:'hintBoth'};
-  $('#modeHint').innerHTML=t(map[recMode]||'hintAudio');
+function updateModeHint(){ const map={audio:'hintAudio',video:'hintVideo',both:'hintBoth'}; $('#modeHint').innerHTML=t(map[recMode]||'hintAudio'); }
+
+function recSetUI(stateName){ // 'idle' | 'armed' | 'recording'
+  $('#recIdle').classList.toggle('hide',stateName!=='idle');
+  $('#recArmed').classList.toggle('hide',stateName!=='armed');
+  $('#recControls').classList.toggle('hide',stateName!=='recording');
 }
 
-async function startRecording(){
-  recChunks=[];
+// STEP 1: pick source and get ready (does NOT start recording yet)
+async function armRecording(){
   try{
-    let stream;
     const wantMic=$('#micToggle').checked;
+    let stream;
     if(recMode==='video'){
       stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
-    }else{
-      // audio or both -> need display media WITH audio to grab system sound
-      const disp=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+      if(wantMic){ try{ const mic=await navigator.mediaDevices.getUserMedia({audio:NO_PROCESSING}); stream=new MediaStream([...stream.getVideoTracks(),...mic.getAudioTracks()]); }catch(e){} }
+    } else {
+      const disp=await navigator.mediaDevices.getDisplayMedia({video:true, audio:{...NO_PROCESSING}});
+      const audioTracks=disp.getAudioTracks();
+      if(audioTracks.length===0){ disp.getTracks().forEach(t=>t.stop()); toast('לא שותף אודיו — סמן "שתף אודיו" בחלון הבחירה'); return; }
       if(recMode==='audio'){
-        // keep only audio: build a stream from the display audio (+optional mic)
-        const audioTracks=disp.getAudioTracks();
-        if(audioTracks.length===0){
-          disp.getTracks().forEach(t=>t.stop());
-          toast(t('noAudioShared')||'לא שותף אודיו — סמן "שתף אודיו" בחלון הבחירה'); 
-          return;
-        }
-        stream=await buildAudioStream(disp, wantMic);
-        // stop the (unused) video track from display
-        disp.getVideoTracks().forEach(t=>t.stop());
-      }else{
-        // both: keep video from display, mix display-audio + optional mic
-        const mixed=await buildAudioStream(disp, wantMic);
-        stream=new MediaStream([...disp.getVideoTracks(), ...mixed.getAudioTracks()]);
+        // no mic -> record the system-audio track DIRECTLY (no AudioContext = no gain artifacts)
+        if(!wantMic){ stream=new MediaStream(audioTracks); disp.getVideoTracks().forEach(t=>t.stop()); }
+        else { stream=await buildAudioStream(disp,true); disp.getVideoTracks().forEach(t=>t.stop()); }
+      } else {
+        if(!wantMic){ stream=new MediaStream([...disp.getVideoTracks(),...audioTracks]); }
+        else { const mixed=await buildAudioStream(disp,true); stream=new MediaStream([...disp.getVideoTracks(),...mixed.getAudioTracks()]); }
       }
     }
-    // for video/both with mic, add mic if requested
-    if(recMode==='video' && wantMic){
-      try{const mic=await navigator.mediaDevices.getUserMedia({audio:true});
-        stream=new MediaStream([...stream.getVideoTracks(), ...mic.getAudioTracks()]);
-      }catch(e){}
-    }
     recStream=stream;
-    const kind=(recMode==='audio')?'audio':'video';
-    const mime=pickMime(kind);
-    mediaRecorder=new MediaRecorder(stream, mime?{mimeType:mime}:undefined);
-    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recChunks.push(e.data);};
-    mediaRecorder.onstop=finalizeRecording;
-    mediaRecorder.start(200);
+    recKind=(recMode==='audio')?'audio':'video';
+    // if user stops sharing via the browser bar while armed/recording
+    stream.getTracks().forEach(tr=>{ tr.addEventListener('ended',()=>{ if(mediaRecorder&&mediaRecorder.state!=='inactive'){ recAction='save'; mediaRecorder.stop(); } else if(recStream){ cleanupStream(); recSetUI('idle'); } }); });
+    if(recKind==='video'){ const v=$('#livePrev'); v.srcObject=stream; v.classList.remove('hide'); v.play().catch(()=>{}); }
+    $('#recTimer').textContent='00:00';
+    recSetUI('armed');
+  }catch(err){ console.error(err); if(err&&err.name==='NotAllowedError') toast('הבחירה בוטלה'); else toast('שגיאה: '+(err.message||err.name||'')); }
+}
 
-    // if the user stops sharing via the browser bar
-    stream.getVideoTracks().concat(stream.getAudioTracks()).forEach(tr=>{
-      tr.addEventListener('ended',()=>{ if(mediaRecorder&&mediaRecorder.state!=='inactive') stopRecording(); });
-    });
-
-    // live preview for video modes
-    if(kind==='video'){ const v=$('#livePrev'); v.srcObject=stream; v.classList.remove('hide'); v.play().catch(()=>{}); }
-
-    recStart=Date.now(); recPausedTotal=0;
-    $('#startBtn').classList.add('hide'); $('#recControls').classList.remove('hide');
-    tickTimer(); recTimerInt=setInterval(tickTimer,500);
-  }catch(err){
-    console.error(err);
-    if(err&&err.name==='NotAllowedError') toast(t('cancelled')||'ההקלטה בוטלה');
-    else toast((t('recErr')||'שגיאת הקלטה')+': '+(err.message||err.name||''));
-  }
+// STEP 2: actually start recording the armed stream
+function beginRecording(){
+  if(!recStream) return;
+  recChunks=[]; recAction='save';
+  const mime=pickMime(recKind);
+  mediaRecorder=new MediaRecorder(recStream, mime?{mimeType:mime}:undefined);
+  mediaRecorder.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+  mediaRecorder.onstop=onRecStop;
+  mediaRecorder.start(200);
+  recStart=Date.now(); recPausedTotal=0;
+  recSetUI('recording'); $('#pauseBtn').innerHTML=t('pause');
+  tickTimer(); recTimerInt=setInterval(tickTimer,500);
 }
 async function buildAudioStream(disp, wantMic){
   mixCtx=new (window.AudioContext||window.webkitAudioContext)();
   const dest=mixCtx.createMediaStreamDestination();
-  const src1=mixCtx.createMediaStreamSource(new MediaStream(disp.getAudioTracks()));
-  src1.connect(dest);
-  if(wantMic){
-    try{ const mic=await navigator.mediaDevices.getUserMedia({audio:true});
-      const src2=mixCtx.createMediaStreamSource(mic); src2.connect(dest);
-    }catch(e){ toast('לא ניתן להוסיף מיקרופון'); }
-  }
+  mixCtx.createMediaStreamSource(new MediaStream(disp.getAudioTracks())).connect(dest);
+  if(wantMic){ try{ const mic=await navigator.mediaDevices.getUserMedia({audio:NO_PROCESSING}); mixCtx.createMediaStreamSource(mic).connect(dest); }catch(e){ toast('לא ניתן להוסיף מיקרופון'); } }
   return dest.stream;
 }
 function tickTimer(){
   if(!mediaRecorder) return;
-  let elapsed;
-  if(mediaRecorder.state==='paused'){ elapsed=(recPausedAt-recStart-recPausedTotal); }
-  else { elapsed=(Date.now()-recStart-recPausedTotal); }
+  let elapsed=(mediaRecorder.state==='paused')?(recPausedAt-recStart-recPausedTotal):(Date.now()-recStart-recPausedTotal);
   $('#recTimer').innerHTML=(mediaRecorder.state==='recording'?'<span class="dot"></span>':'')+fmtTime(elapsed/1000);
 }
-$('#startBtn').addEventListener('click',startRecording);
+function cleanupStream(){ if(recStream){ recStream.getTracks().forEach(t=>t.stop()); recStream=null; } if(mixCtx){try{mixCtx.close();}catch(e){} mixCtx=null;} const v=$('#livePrev'); v.srcObject=null; v.classList.add('hide'); }
+
+$('#armBtn').addEventListener('click',armRecording);
+$('#beginBtn').addEventListener('click',beginRecording);
+$('#cancelArmBtn').addEventListener('click',()=>{ cleanupStream(); recSetUI('idle'); $('#recTimer').textContent='00:00'; });
 $('#pauseBtn').addEventListener('click',()=>{
   if(!mediaRecorder)return;
   if(mediaRecorder.state==='recording'){ mediaRecorder.pause(); recPausedAt=Date.now(); $('#pauseBtn').innerHTML=t('resume'); }
   else if(mediaRecorder.state==='paused'){ recPausedTotal+=Date.now()-recPausedAt; mediaRecorder.resume(); $('#pauseBtn').innerHTML=t('pause'); }
   tickTimer();
 });
-$('#stopBtn').addEventListener('click',stopRecording);
-function stopRecording(){ if(mediaRecorder&&mediaRecorder.state!=='inactive') mediaRecorder.stop(); }
+$('#restartBtn').addEventListener('click',()=>{
+  if(!mediaRecorder)return;
+  recAction='restart'; clearInterval(recTimerInt); recTimerInt=null;
+  if(mediaRecorder.state!=='inactive') mediaRecorder.stop(); else beginRecording();
+});
+$('#discardBtn').addEventListener('click',()=>{
+  if(!mediaRecorder)return;
+  if(!confirm(state.lang==='he'?'למחוק את ההקלטה הנוכחית?':'Discard current recording?'))return;
+  recAction='discard'; clearInterval(recTimerInt); recTimerInt=null;
+  if(mediaRecorder.state!=='inactive') mediaRecorder.stop();
+});
+$('#stopBtn').addEventListener('click',()=>{ recAction='save'; clearInterval(recTimerInt); recTimerInt=null; if(mediaRecorder&&mediaRecorder.state!=='inactive') mediaRecorder.stop(); });
 
+function onRecStop(){
+  const action=recAction;
+  if(action==='restart'){ mediaRecorder=null; beginRecording(); return; }
+  if(action==='discard'){ mediaRecorder=null; cleanupStream(); recSetUI('idle'); $('#recTimer').textContent='00:00'; toast(state.lang==='he'?'ההקלטה נמחקה':'Discarded'); return; }
+  finalizeRecording();
+}
 async function finalizeRecording(){
   clearInterval(recTimerInt); recTimerInt=null;
-  const kind=(recMode==='audio')?'audio':'video';
+  const kind=recKind;
   const type=(recChunks[0]&&recChunks[0].type)||(kind==='audio'?'audio/webm':'video/webm');
   const blob=new Blob(recChunks,{type});
-  // cleanup
-  if(recStream) recStream.getTracks().forEach(t=>t.stop());
-  if(mixCtx){try{mixCtx.close();}catch(e){} mixCtx=null;}
-  const v=$('#livePrev'); v.srcObject=null; v.classList.add('hide');
-  $('#startBtn').classList.remove('hide'); $('#recControls').classList.add('hide');
-  $('#recTimer').textContent='00:00'; $('#pauseBtn').innerHTML=t('pause');
-
+  cleanupStream(); mediaRecorder=null;
+  recSetUI('idle'); $('#recTimer').textContent='00:00'; $('#pauseBtn').innerHTML=t('pause');
+  if(!blob.size){ toast(state.lang==='he'?'לא הוקלט כלום':'Nothing recorded'); return; }
   const now=new Date();
   const item={ id:'r'+Date.now(), kind, type, blob, size:blob.size,
     name:(kind==='audio'?'הקלטת קול ':'הקלטת מסך ')+now.toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
     created:now.getTime() };
-  try{ await dbPut(item); toast(t('savedLib')||'נשמר בספרייה ✓'); }
-  catch(e){ toast('שגיאת שמירה'); }
+  try{ await dbPut(item); toast('נשמר בספרייה ✓'); }catch(e){ toast('שגיאת שמירה'); }
   go('library');
 }
 
@@ -1189,8 +1211,60 @@ async function loadFFmpeg(){
   return ffmpegLoading;
 }
 
+function previewAndSave(blob, baseName, kind){
+  const he=state.lang==='he'; const url=URL.createObjectURL(blob);
+  const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">
+    <b>${he?'תצוגה מקדימה':'Preview'}</b>
+    <video src="${url}" controls autoplay playsinline style="width:100%;border-radius:12px;margin-top:10px;background:#000"></video>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" id="pvSave" style="flex:1">💾 ${he?'שמור':'Save'}</button>
+      <button class="btn ghost sm" id="pvShare" style="flex:1">🔗 ${he?'שתף':'Share'}</button>
+      <button class="btn ghost sm" id="pvRedo" style="flex:1">↩︎ ${he?'בטל':'Discard'}</button>
+    </div>
+    <div class="hint" style="margin-top:6px">${he?'לא מרוצה? "בטל" ותוכל לשנות הגדרות וליצור שוב.':'Not happy? Discard, tweak settings and re-create.'}</div>
+  </div>`;
+  document.body.appendChild(bg);
+  const q=s=>bg.querySelector(s);
+  const item={id:'v'+Date.now(),kind:kind||'video',type:blob.type,blob,size:blob.size,name:baseName,created:Date.now()};
+  const close=()=>{ URL.revokeObjectURL(url); bg.remove(); };
+  q('#pvSave').addEventListener('click',async()=>{ await dbPut(item); download(blob, safeName(baseName)+'.mp4'); toast(he?'נשמר בספרייה ✓':'Saved ✓'); close(); });
+  q('#pvShare').addEventListener('click',()=>shareItem(item));
+  q('#pvRedo').addEventListener('click',close);
+  bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+}
+
 /* ============ SONG → VIDEO (MP3 + image -> MP4) ============ */
-let tvAudio=null, tvImage=null, tvAspect='16:9', tvSyncMode='manual', tvLyricTimes=[];
+let tvAudio=null, tvImage=null, tvAspect='16:9', tvSyncMode='manual', tvLyricTimes=[], tvStyle='classic';
+$$('#tvStyleSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvStyleSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvStyle=b.dataset.st; }));
+function normTokens(s){ return String(s||'').replace(/[\u0591-\u05C7]/g,'').replace(/[^\p{L}\p{N}\s]/gu,' ').toLowerCase().split(/\s+/).filter(Boolean); }
+function fillNulls(times,n,songDur){
+  let firstK=-1,lastK=-1; for(let i=0;i<n;i++){ if(times[i]!=null){ if(firstK<0)firstK=i; lastK=i; } }
+  if(firstK<0) return;
+  for(let i=0;i<firstK;i++) times[i]=times[firstK]*(firstK?i/firstK:0);
+  for(let i=lastK+1;i<n;i++){ const span=Math.max(1,songDur-times[lastK]); times[i]=Math.min(songDur, times[lastK]+span*((i-lastK)/(n-lastK))); }
+  let i=firstK; while(i<lastK){ let j=i+1; while(j<=lastK && times[j]==null) j++; if(j-i>1){ const a=times[i], b=times[j]; for(let k=i+1;k<j;k++) times[k]=a+(b-a)*((k-i)/(j-i)); } i=j; }
+  for(let k=1;k<n;k++){ if(times[k]<times[k-1]) times[k]=times[k-1]; }
+}
+function alignByText(lines,segments,songDur){
+  const segs=(segments||[]).filter(s=>isFinite(s.start)).sort((a,b)=>a.start-b.start);
+  if(segs.length<2) return null;
+  const segTok=segs.map(s=>new Set(normTokens(s.text)));
+  const times=new Array(lines.length).fill(null); let lastSeg=-1, matched=0;
+  for(let i=0;i<lines.length;i++){
+    const lt=new Set(normTokens(lines[i])); if(!lt.size) continue;
+    let best=-1,bestScore=0;
+    for(let j=lastSeg+1;j<segs.length && j<=lastSeg+10;j++){
+      let inter=0; lt.forEach(w=>{ if(segTok[j].has(w)) inter++; });
+      const uni=lt.size+segTok[j].size-inter; const score=uni?inter/uni:0;
+      if(score>bestScore){ bestScore=score; best=j; }
+    }
+    if(best>=0 && bestScore>=0.12){ times[i]=segs[best].start; lastSeg=best; matched++; }
+  }
+  if(matched < Math.max(2, lines.length*0.25)) return null;
+  fillNulls(times, lines.length, songDur);
+  return times;
+}
 function tvLines(){ return $('#tvLyrics').value.split('\n').map(s=>s.trim()).filter(Boolean); }
 $('#tvLyrics').addEventListener('input',()=>{ const has=tvLines().length>0; $('#tvLyricsOpts').classList.toggle('hide',!has); tvLyricTimes=[]; $('#tvSyncStatus').textContent=''; });
 function refreshSyncBtn(){ const btn=$('#tvSyncBtn'); const he=state.lang==='he'; if(tvSyncMode==='manual'){ btn.style.display='block'; btn.innerHTML='🎯 '+(he?'סנכרן מילים ידנית':'Sync manually'); } else if(tvSyncMode==='ai'){ btn.style.display='block'; btn.innerHTML='🤖 '+(he?'סנכרן עם בינה':'Sync with AI'); } else { btn.style.display='none'; } }
@@ -1238,35 +1312,52 @@ function openLyricSync(lines){
 function autoTimes(lines,songDur){ const n=lines.length; const start=Math.min(2,songDur*0.05); const span=Math.max(1,songDur-start); return lines.map((_,i)=>start+span*i/n); }
 function loadImageEl(file){ return new Promise((res,rej)=>{ const img=new Image(); const u=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(u);res(img);}; img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('img'));}; img.src=u; }); }
 function wrapText(ctx,text,maxW){ const words=(text||'').split(/\s+/); const out=[]; let cur=''; for(const w of words){ const test=cur?cur+' '+w:w; if(ctx.measureText(test).width>maxW && cur){out.push(cur);cur=w;} else cur=test; } if(cur)out.push(cur); return out; }
-async function renderFrame(img,cur,next,W,H,bg){
-  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+function drawBase(ctx,img,W,H,bg){
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   const r=Math.min(W/img.width,H/img.height), iw=img.width*r, ih=img.height*r;
   ctx.drawImage(img,(W-iw)/2,(H-ih)/2,iw,ih);
-  const g=ctx.createLinearGradient(0,H*0.45,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.78)'); ctx.fillStyle=g; ctx.fillRect(0,H*0.45,W,H*0.55);
+  const g=ctx.createLinearGradient(0,H*0.42,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.80)'); ctx.fillStyle=g; ctx.fillRect(0,H*0.42,W,H*0.58);
   ctx.textAlign='center'; try{ctx.direction='rtl';}catch(e){}
-  const maxW=W*0.86, cx=W/2;
-  const curSize=Math.round(H*0.072); ctx.font='700 '+curSize+'px system-ui,Arial,sans-serif';
-  const curLines=wrapText(ctx,cur,maxW);
-  const nextSize=Math.round(H*0.048);
-  let y=H*0.70;
-  ctx.shadowColor='rgba(0,0,0,0.85)'; ctx.shadowBlur=Math.round(H*0.012); ctx.fillStyle='#ffffff';
-  curLines.forEach(l=>{ ctx.fillText(l,cx,y); y+=curSize*1.15; });
-  if(next){ ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='600 '+nextSize+'px system-ui,Arial,sans-serif'; y+=nextSize*0.35;
-    wrapText(ctx,next,maxW).forEach(l=>{ ctx.fillText(l,cx,y); y+=nextSize*1.15; }); }
-  ctx.shadowBlur=0;
+}
+function drawLine(ctx,text,cx,y,size,weight,color,maxW,sh){
+  ctx.font=weight+' '+size+'px system-ui,Arial,sans-serif'; ctx.fillStyle=color; ctx.shadowColor='rgba(0,0,0,0.85)'; ctx.shadowBlur=sh||0;
+  wrapText(ctx,text,maxW).forEach(l=>{ ctx.fillText(l,cx,y); y+=size*1.15; }); ctx.shadowBlur=0; return y;
+}
+async function renderFrame(img,opt,W,H,bg){
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  drawBase(ctx,img,W,H,bg);
+  const cx=W/2, maxW=W*0.86, GOLD='#e8b923';
+  const cur=opt.cur||'', next=opt.next||'', style=opt.style||'classic';
+  const cSize=Math.round(H*0.072), nSize=Math.round(H*0.048), sh=Math.round(H*0.012);
+  if(style==='single'){
+    drawLine(ctx,cur,cx,H*0.80,cSize,'700','#ffffff',maxW,sh);
+  } else if(style==='karaoke'){
+    let y=H*0.70; y=drawLine(ctx,cur,cx,y,Math.round(H*0.082),'800',GOLD,maxW,sh);
+    if(next){ y+=nSize*0.35; drawLine(ctx,next,cx,y,nSize,'600','rgba(255,255,255,0.55)',maxW,sh); }
+  } else if(style==='scroll'){
+    const lines=opt.lines||[], idx=opt.idx||0, win=2, startL=Math.max(0,idx-win);
+    let y=H*0.50;
+    for(let j=startL;j<=idx+win && j<lines.length;j++){
+      const isCur=j===idx, sz=isCur?Math.round(H*0.062):Math.round(H*0.046);
+      ctx.font=(isCur?'800 ':'600 ')+sz+'px system-ui,Arial,sans-serif'; ctx.fillStyle=isCur?GOLD:'rgba(255,255,255,0.42)'; ctx.shadowColor='rgba(0,0,0,0.85)'; ctx.shadowBlur=sh;
+      wrapText(ctx,lines[j],maxW).forEach(l=>{ ctx.fillText(l,cx,y); y+=sz*1.15; }); y+=sz*0.15; ctx.shadowBlur=0;
+    }
+  } else { // classic: current + next dimmed
+    let y=H*0.70; y=drawLine(ctx,cur,cx,y,cSize,'700','#ffffff',maxW,sh);
+    if(next){ y+=nSize*0.35; drawLine(ctx,next,cx,y,nSize,'600','rgba(255,255,255,0.5)',maxW,sh); }
+  }
   return await new Promise(res=>cv.toBlob(res,'image/png'));
 }
-async function renderLyricFrames(imgFile,lines,times,W,H,bg,songDur){
+async function renderLyricFrames(imgFile,lines,times,W,H,bg,songDur,style){
   const img=await loadImageEl(imgFile);
   const pts=lines.map((text,i)=>({text,t:times[i]})).filter(p=>p.t!=null&&isFinite(p.t)).sort((a,b)=>a.t-b.t);
-  const frames=[];
-  if(!pts.length){ frames.push({blob:await renderFrame(img,'','',W,H,bg),dur:Math.max(1,songDur)}); return frames; }
-  if(pts[0].t>0.05) frames.push({blob:await renderFrame(img,'',pts[0].text,W,H,bg),dur:pts[0].t});
+  const texts=pts.map(p=>p.text); const frames=[];
+  if(!pts.length){ frames.push({blob:await renderFrame(img,{style,cur:'',next:'',lines:texts,idx:0},W,H,bg),dur:Math.max(1,songDur)}); return frames; }
+  if(pts[0].t>0.05) frames.push({blob:await renderFrame(img,{style,cur:'',next:pts[0].text,lines:texts,idx:-1},W,H,bg),dur:pts[0].t});
   for(let i=0;i<pts.length;i++){
     const cur=pts[i].text, next=(i+1<pts.length)?pts[i+1].text:'';
     const dur=(i+1<pts.length)?(pts[i+1].t-pts[i].t):Math.max(1.5,songDur-pts[i].t);
-    frames.push({blob:await renderFrame(img,cur,next,W,H,bg),dur:Math.max(0.3,dur)});
+    frames.push({blob:await renderFrame(img,{style,cur,next,lines:texts,idx:i},W,H,bg),dur:Math.max(0.3,dur)});
   }
   return frames;
 }
@@ -1285,12 +1376,12 @@ function tvCheck(){ $('#tvRun').disabled=!(tvAudio&&tvImage); }
 $('#tvRun').addEventListener('click',async()=>{
   if(!(tvAudio&&tvImage))return;
   const prog=$('#tvProg'), bar=prog.firstElementChild, st=$('#tvStatus');
-  const waveform=$('#tvWave').checked, bg=$('#tvBg').value;
+  const waveform=$('#tvWave').checked, bg=$('#tvBg').value; const he=state.lang==='he';
   const lines=tvLines();
   let lyrics=null;
   if(lines.length){
-    lyrics={lines, mode:tvSyncMode, times:tvLyricTimes};
-    if(tvSyncMode==='manual' && tvLyricTimes.filter(t=>t!=null).length===0){ toast(state.lang==='he'?'לא סונכרן ידנית — נשתמש בחלוקה אוטומטית':'Not synced — using auto timing'); }
+    lyrics={lines, mode:tvSyncMode, times:tvLyricTimes, style:tvStyle};
+    if(tvSyncMode==='manual' && tvLyricTimes.filter(t=>t!=null).length===0){ toast(he?'לא סונכרן ידנית — נשתמש בחלוקה אוטומטית':'Not synced — using auto timing'); }
   }
   try{
     prog.classList.remove('hide'); bar.style.width='5%';
@@ -1301,10 +1392,9 @@ $('#tvRun').addEventListener('click',async()=>{
     const blob=await makeSongVideo(tvAudio,tvImage,{aspect:tvAspect,bg,waveform,lyrics});
     bar.style.width='100%';
     const base=(tvAudio.name.replace(/\.[^.]+$/,''))||'song';
-    download(blob,base+'.mp4');
-    await dbPut({id:'v'+Date.now(),kind:'video',type:'video/mp4',blob,size:blob.size,name:'וידאו: '+base,created:Date.now()});
-    st.textContent='הוידאו נוצר ונשמר בספרייה ✓';
-    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},1000);
+    st.textContent=he?'מוכן — צפה בתצוגה מקדימה ואז שמור':'Ready — preview then save';
+    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},500);
+    previewAndSave(blob,(he?'וידאו: ':'video: ')+base,'video');
   }catch(e){ console.error(e); st.textContent='שגיאה ביצירת הוידאו: '+(e.message||e); prog.classList.add('hide'); }
   finally{ currentProg=null; }
 });
@@ -1323,7 +1413,7 @@ async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',wavef
     const ab=await audioFile.arrayBuffer(); const abuf=await actx().decodeAudioData(ab.slice(0)); const songDur=abuf.duration;
     const validManual = lyrics.times && lyrics.times.filter(t=>t!=null).length;
     const times=(lyrics.mode!=='auto' && validManual) ? lyrics.times : autoTimes(lyrics.lines,songDur);
-    const frames=await renderLyricFrames(imgFile,lyrics.lines,times,W,H,bg,songDur);
+    const frames=await renderLyricFrames(imgFile,lyrics.lines,times,W,H,bg,songDur,lyrics.style||'classic');
     let list='';
     for(let i=0;i<frames.length;i++){ await ffmpeg.writeFile('f'+i+'.png', await fetchFile(frames[i].blob)); list+="file 'f"+i+".png'\nduration "+frames[i].dur.toFixed(3)+"\n"; }
     list+="file 'f"+(frames.length-1)+".png'\n";
@@ -1430,7 +1520,7 @@ async function runAiSync(lines){
   try{
     const segs = AI.provider==='openai' ? await transcribeOpenAI(tvAudio) : await transcribeGemini(tvAudio);
     const ab=await tvAudio.arrayBuffer(); const abuf=await actx().decodeAudioData(ab.slice(0)); const songDur=abuf.duration;
-    tvLyricTimes = aiSyncTimes(lines,segs,songDur);
+    tvLyricTimes = alignByText(lines,segs,songDur) || aiSyncTimes(lines,segs,songDur);
     updateSyncStatus();
     st.textContent=he?('✓ סונכרן בעזרת בינה ('+segs.length+' מקטעים). אפשר לעבור לידני כדי לתקן.'):('✓ AI-synced ('+segs.length+' segments)');
   }catch(e){ console.error(e); st.textContent='✗ '+(e.message||e); }
@@ -1524,10 +1614,9 @@ $('#vtRun').addEventListener('click',async()=>{
     const data=await ffmpeg.readFile('out.mp4'); bar.style.width='100%';
     const blob=new Blob([data.buffer],{type:'video/mp4'});
     const base=(vtFile.name.replace(/\.[^.]+$/,''))||'clip';
-    download(blob,base+'_trim.mp4');
-    await dbPut({id:'t'+Date.now(),kind:'video',type:'video/mp4',blob,size:blob.size,name:'חתוך: '+base,created:Date.now()});
-    st.textContent=he?'✓ נחתך ונשמר בספרייה':'✓ Trimmed & saved';
-    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},900);
+    st.textContent=he?'מוכן — צפה ואז שמור':'Ready — preview then save';
+    setTimeout(()=>{prog.classList.add('hide');bar.style.width='0%';},500);
+    previewAndSave(blob,(he?'חתוך: ':'trim: ')+base,'video');
   }catch(e){ console.error(e); st.textContent='✗ '+(e.message||e); prog.classList.add('hide'); }
   finally{ currentProg=null; }
 });
