@@ -333,6 +333,13 @@
         <button data-a="9:16">9:16 <span data-i="tvStory">סטורי</span></button>
       </div>
 
+      <label class="field" data-i="tvQualityL">רזולוציה / איכות</label>
+      <div class="seg" id="tvQualitySeg">
+        <button data-q="light" data-i="tvQLight">קל למובייל</button>
+        <button data-q="720" class="on">720p</button>
+        <button data-q="1080" data-i="tvQHD">1080p</button>
+      </div>
+
       <div class="switch">
         <input type="checkbox" id="tvWave">
         <span data-i="tvWaveform">להוסיף אנימציית גל קול (איטי יותר)</span>
@@ -414,6 +421,12 @@
     <div class="card">
       <b data-i="dataT">נתונים</b>
       <div class="hint" data-i="dataH">ההקלטות נשמרות רק במכשיר שלך (בדפדפן). שום דבר לא עולה לשרת.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn ghost sm" id="backupFull" style="flex:1">💾 <span data-i="backupFull">גיבוי מלא</span></button>
+        <button class="btn ghost sm" id="backupSafe" style="flex:1">🔒 <span data-i="backupSafe">גיבוי בלי מפתחות</span></button>
+        <button class="btn ghost sm" id="restoreBtn" style="flex:1">📥 <span data-i="restoreBk">שחזר</span></button>
+      </div>
+      <div class="hint" data-i="backupHint">הגיבוי כולל הגדרות וטיוטת כתוביות (לא את ההקלטות עצמן, שהן כבדות). "מלא" כולל גם את מפתחות הבינה — שמור אותו במקום בטוח.</div>
       <button class="btn red ghost" id="clearAll" style="margin-top:10px;color:var(--red);border-color:var(--red)" data-i="clearData">🗑 מחק את כל ההקלטות</button>
     </div>
     <div class="card">
@@ -431,7 +444,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v1.7</span></b>
+        <b>אולפן AppNest <span class="badge">v1.8</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -533,6 +546,9 @@ const I18N={
     night:"🌙 Night", day:"☀️ Day",
     dataT:"Data", dataH:"Recordings are stored only on your device (in the browser). Nothing is uploaded.",
     clearData:"🗑 Delete all recordings",
+    backupFull:"Full backup", backupSafe:"Backup w/o keys", restoreBk:"Restore",
+    backupHint:"Backup includes settings and the lyrics draft (not the recordings themselves — they're large). \"Full\" also includes your AI keys — keep it somewhere safe.",
+    tvQualityL:"Resolution / quality", tvQLight:"Mobile-light", tvQHD:"1080p",
     aboutTxt:"A local recording & editing tool — screen/audio capture, trim, join and format conversion. Part of the AppNest family. Everything runs in your browser, nothing is uploaded.",
     navHome:"Home", navRec:"Record", navEdit:"Edit", navLib:"Library", navSet:"Settings"
   }
@@ -1398,6 +1414,14 @@ $('#tvPickImage').addEventListener('click',()=>{
     const u=URL.createObjectURL(tvImage); $('#tvImgPrev').innerHTML=`<img src="${u}" style="max-height:140px;border-radius:12px;border:1px solid var(--line)">`; tvCheck(); } }; inp.click();
 });
 $$('#tvAspectSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvAspectSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvAspect=b.dataset.a; }));
+let tvQuality='720';
+$$('#tvQualitySeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvQualitySeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvQuality=b.dataset.q; }));
+function videoDims(aspect,quality){
+  const baseH={light:480,'720':720,'1080':1080}[quality]||720;
+  if(aspect==='1:1') return [baseH,baseH];
+  if(aspect==='9:16') return [Math.round(baseH*9/16/2)*2, baseH];
+  return [Math.round(baseH*16/9/2)*2, baseH]; // 16:9
+}
 function tvCheck(){ $('#tvRun').disabled=!(tvAudio&&tvImage); }
 
 $('#tvRun').addEventListener('click',async()=>{
@@ -1416,7 +1440,7 @@ $('#tvRun').addEventListener('click',async()=>{
     await loadFFmpeg(); bar.style.width='25%';
     st.textContent=lines.length?'יוצר וידאו עם כתוביות…':(waveform?'יוצר וידאו עם גל קול (זה לוקח יותר זמן)…':'יוצר וידאו…');
     currentProg=(p)=>{ bar.style.width=(25+p*70)+'%'; };
-    const blob=await makeSongVideo(tvAudio,tvImage,{aspect:tvAspect,bg,waveform,lyrics});
+    const blob=await makeSongVideo(tvAudio,tvImage,{aspect:tvAspect,bg,waveform,lyrics,quality:tvQuality});
     bar.style.width='100%';
     const base=(tvAudio.name.replace(/\.[^.]+$/,''))||'song';
     st.textContent=he?'מוכן — צפה בתצוגה מקדימה ואז שמור':'Ready — preview then save';
@@ -1426,10 +1450,10 @@ $('#tvRun').addEventListener('click',async()=>{
   finally{ currentProg=null; }
 });
 
-async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',waveform=false,lyrics=null}){
+async function makeSongVideo(audioFile,imgFile,{aspect='16:9',bg='#0a0a0a',waveform=false,lyrics=null,quality='720'}){
   await loadFFmpeg();
   const {fetchFile}=ffmpegUtil;
-  const dims={'16:9':[1280,720],'1:1':[720,720],'9:16':[720,1280]}[aspect]||[1280,720];
+  const dims=videoDims(aspect,quality);
   const [W,H]=dims; const bgHex=(bg||'#0a0a0a').replace('#','0x');
   const imgExt=(imgFile.name.match(/\.[^.]+$/)||['.jpg'])[0];
   const audExt=(audioFile.name.match(/\.[^.]+$/)||['.mp3'])[0];
@@ -1488,6 +1512,44 @@ $('#aboutShareApp').addEventListener('click',async()=>{ try{ if(navigator.share)
 $('#aboutFeedback').addEventListener('click',()=>{ location.href='mailto:appnest55@gmail.com?subject='+encodeURIComponent('משוב — אולפן AppNest v1.2'); });
 $('#aboutPrivacy').addEventListener('click',()=>window.open('privacy_policy.html','_blank'));
 $('#aiSetupBtn').addEventListener('click',openAiSetup);
+
+function doBackup(includeKeys){
+  const he=state.lang==='he';
+  let draft=null; try{ draft=JSON.parse(localStorage.getItem(PREFIX+'lyricdraft')||'null'); }catch(e){}
+  const data={ app:'appnest-studio', version:'1.8', exported:new Date().toISOString(), includesKeys:!!includeKeys,
+    settings:{ name:state.name, lang:state.lang, theme:state.theme, palette:state.palette },
+    ai:{ provider:AI.provider||'', geminiModel:AI.geminiModel||'', openaiModel:AI.openaiModel||'' },
+    lyricDraft:draft };
+  if(includeKeys){ data.ai.geminiKey=AI.geminiKey||''; data.ai.openaiKey=AI.openaiKey||''; }
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const stamp=new Date().toISOString().slice(0,10);
+  download(blob, 'appnest-studio-backup'+(includeKeys?'-full':'-safe')+'-'+stamp+'.json');
+  toast(he?(includeKeys?'גיבוי מלא נשמר ✓':'גיבוי בלי מפתחות נשמר ✓'):'Backup saved ✓');
+}
+$('#backupFull').addEventListener('click',()=>{ const he=state.lang==='he'; if(confirm(he?'הגיבוי יכלול את מפתחות הבינה שלך. לשמור אותו במקום בטוח בלבד. להמשיך?':'This backup includes your AI keys. Keep it private. Continue?')) doBackup(true); });
+$('#backupSafe').addEventListener('click',()=>doBackup(false));
+$('#restoreBtn').addEventListener('click',()=>{
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json,.json';
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f)return; const rd=new FileReader();
+    rd.onload=()=>{ try{
+      const d=JSON.parse(rd.result); const he=state.lang==='he';
+      if(!d||d.app!=='appnest-studio'){ toast(he?'קובץ גיבוי לא תקין':'Invalid backup file'); return; }
+      if(d.settings){ if(d.settings.name!=null){ state.name=d.settings.name; localStorage.setItem(PREFIX+'name',state.name); $('#setName').value=state.name; }
+        if(d.settings.lang){ state.lang=d.settings.lang; localStorage.setItem(PREFIX+'lang',state.lang); }
+        if(d.settings.theme){ state.theme=d.settings.theme; localStorage.setItem(PREFIX+'theme',state.theme); }
+        if(d.settings.palette){ state.palette=d.settings.palette; localStorage.setItem(PREFIX+'palette',state.palette); } }
+      if(d.ai){ AI.provider=d.ai.provider||AI.provider; if(d.ai.geminiModel!=null)AI.geminiModel=d.ai.geminiModel; if(d.ai.openaiModel!=null)AI.openaiModel=d.ai.openaiModel;
+        if(d.ai.geminiKey!=null)AI.geminiKey=d.ai.geminiKey; if(d.ai.openaiKey!=null)AI.openaiKey=d.ai.openaiKey; saveAI(); }
+      if(d.lyricDraft){ try{ localStorage.setItem(PREFIX+'lyricdraft', JSON.stringify(d.lyricDraft)); }catch(e){} }
+      applyTheme(); applyPalette(); applyLang();
+      $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang));
+      $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme));
+      updateAiStatus(); restoreLyricDraft();
+      toast(he?'שוחזר ✓':'Restored ✓');
+    }catch(e){ toast(state.lang==='he'?'שגיאה בקריאת הגיבוי':'Could not read backup'); } };
+    rd.readAsText(f); };
+  inp.click();
+});
 $('#langBtn').addEventListener('click',()=>{ state.lang=state.lang==='he'?'en':'he'; localStorage.setItem(PREFIX+'lang',state.lang); $$('#langSeg button').forEach(x=>x.classList.toggle('on',x.dataset.lang===state.lang)); applyLang(); });
 $('#themeBtn').addEventListener('click',()=>{ state.theme=state.theme==='night'?'day':'night'; localStorage.setItem(PREFIX+'theme',state.theme); $$('#themeSeg button').forEach(x=>x.classList.toggle('on',x.dataset.th===state.theme)); applyTheme(); });
 $('#paletteBtn').addEventListener('click',()=>{ const i=PALETTES.indexOf(state.palette); state.palette=PALETTES[(i+1)%PALETTES.length]; localStorage.setItem(PREFIX+'palette',state.palette); applyPalette(); });
