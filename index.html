@@ -122,6 +122,8 @@
   .toast > div{background:var(--card2);border:1px solid var(--gold);color:var(--txt);padding:11px 18px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;max-width:90%}
   .hide{display:none!important}
   .screen.drag{outline:2px dashed var(--gold);outline-offset:-6px;border-radius:16px}
+  /* keep the assistant's floating button above the bottom nav */
+  #appnest-assistant-btn{ bottom:96px !important; }
   video.prev,audio.prev{width:100%;border-radius:12px;margin-top:10px;background:#000}
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6}
   .badge{display:inline-block;background:var(--goldsoft);color:var(--gold);font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;margin-inline-start:6px}
@@ -259,6 +261,9 @@
           <button class="btn ghost sm" id="edFadeIn" style="flex:1">🔉 <span data-i="fadeIn">Fade In</span></button>
           <button class="btn ghost sm" id="edFadeOut" style="flex:1">🔈 <span data-i="fadeOut">Fade Out</span></button>
           <button class="btn ghost sm" id="edNorm" style="flex:1">📈 <span data-i="normalize">נרמל עוצמה</span></button>
+        </div>
+        <div class="row tight" style="margin-top:6px">
+          <button class="btn ghost sm" id="edTrimSilence" style="flex:1">🤫 <span data-i="trimSilence">גזור שקט מהקצוות</span></button>
         </div>
       </div>
 
@@ -426,7 +431,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v1.6</span></b>
+        <b>אולפן AppNest <span class="badge">v1.7</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -471,7 +476,7 @@ const I18N={
     tToVid:"Song → Video (MP4)", tToVidS:"MP3 + image → shareable clip",
     stopPlay:"Stop",
     undo:"Undo", loop:"Loop", startEdge:"start", endEdge:"end",
-    fadeIn:"Fade In", fadeOut:"Fade Out", normalize:"Normalize",
+    fadeIn:"Fade In", fadeOut:"Fade Out", normalize:"Normalize", trimSilence:"Trim edge silence",
     bitrate:"MP3 quality (bitrate)",
     paletteL:"Color palette",
     engineT:"Media engine (convert/video)", engineH:"Advanced conversions and Song→Video load the ffmpeg engine (~30MB) on first use. You can test it here in advance.",
@@ -994,9 +999,30 @@ function normalizeBuffer(buffer,target=0.98){
   for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; }
   return {buffer:out,gain};
 }
-$('#edFadeIn').addEventListener('click',()=>{ if(!edActive)return; pushUndo(); const dur=Math.min(3,edActive.buffer.duration/3); edActive.buffer=applyFade(edActive.buffer,'in',dur); edClips[0]=edActive; drawWave(); toast('Fade In הוחל ✓'); });
-$('#edFadeOut').addEventListener('click',()=>{ if(!edActive)return; pushUndo(); const dur=Math.min(3,edActive.buffer.duration/3); edActive.buffer=applyFade(edActive.buffer,'out',dur); edClips[0]=edActive; drawWave(); toast('Fade Out הוחל ✓'); });
-$('#edNorm').addEventListener('click',()=>{ if(!edActive)return; pushUndo(); const {buffer,gain}=normalizeBuffer(edActive.buffer); edActive.buffer=buffer; edClips[0]=edActive; drawWave(); toast(gain>1?('העוצמה הוגברה ×'+gain.toFixed(2)+' ✓'):'כבר בעוצמה מלאה'); });
+$('#edFadeIn').addEventListener('click',()=>{ if(!edClips.length)return; pushUndo(); const c=edClips[0]; const dur=Math.min(3,c.buffer.duration/3); c.buffer=applyFade(c.buffer,'in',dur); edActive=edClips[0]; drawWave(); toast('Fade In הוחל על ההתחלה ✓'); });
+$('#edFadeOut').addEventListener('click',()=>{ if(!edClips.length)return; pushUndo(); const c=edClips[edClips.length-1]; const dur=Math.min(3,c.buffer.duration/3); c.buffer=applyFade(c.buffer,'out',dur); edActive=edClips[0]; drawWave(); toast('Fade Out הוחל על הסוף ✓'); });
+$('#edNorm').addEventListener('click',()=>{
+  if(!edClips.length)return; pushUndo();
+  // global peak across all clips -> one shared gain so the whole result stays balanced
+  let peak=0; edClips.forEach(c=>{ for(let ch=0;ch<c.buffer.numberOfChannels;ch++){ const d=c.buffer.getChannelData(ch); for(let i=0;i<d.length;i++){ const a=Math.abs(d[i]); if(a>peak)peak=a; } } });
+  if(peak<1e-4){ toast('שקט — אין מה לנרמל'); return; }
+  const gain=0.98/peak;
+  edClips.forEach(c=>{ const out=cloneBuffer(c.buffer); for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; } c.buffer=out; });
+  edActive=edClips[0]; drawWave(); toast(gain>1?('העוצמה הוגברה ×'+gain.toFixed(2)+' ✓'):'כבר בעוצמה מלאה');
+});
+function findSound(buffer,thresh){
+  const d=buffer.getChannelData(0); const n=d.length; let s=0,e=n-1;
+  while(s<n && Math.abs(d[s])<thresh) s++;
+  while(e>s && Math.abs(d[e])<thresh) e--;
+  return {from:s/buffer.sampleRate, to:(e+1)/buffer.sampleRate};
+}
+$('#edTrimSilence').addEventListener('click',()=>{
+  if(!edClips.length)return; pushUndo(); const thresh=0.015;
+  const first=edClips[0], last=edClips[edClips.length-1];
+  const a=findSound(first.buffer,thresh); first.buffer=sliceBuffer(first.buffer,Math.max(0,a.from-0.05),first.buffer.duration);
+  const b=findSound(last.buffer,thresh); last.buffer=sliceBuffer(last.buffer,0,Math.min(last.buffer.duration,b.to+0.05));
+  edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; drawWave(); renderClips(); toast('שקט נגזר מהקצוות ✓');
+});
 
 /* play */
 let edPlayTimer, edLoop=false;
@@ -1266,7 +1292,8 @@ function alignByText(lines,segments,songDur){
   return times;
 }
 function tvLines(){ return $('#tvLyrics').value.split('\n').map(s=>s.trim()).filter(Boolean); }
-$('#tvLyrics').addEventListener('input',()=>{ const has=tvLines().length>0; $('#tvLyricsOpts').classList.toggle('hide',!has); tvLyricTimes=[]; $('#tvSyncStatus').textContent=''; });
+$('#tvLyrics').addEventListener('input',()=>{ const has=tvLines().length>0; $('#tvLyricsOpts').classList.toggle('hide',!has); tvLyricTimes=[]; $('#tvSyncStatus').textContent=''; saveLyricDraft(); });
+$$('#tvStyleSeg button').forEach(b=>b.addEventListener('click',()=>saveLyricDraft()));
 function refreshSyncBtn(){ const btn=$('#tvSyncBtn'); const he=state.lang==='he'; if(tvSyncMode==='manual'){ btn.style.display='block'; btn.innerHTML='🎯 '+(he?'סנכרן מילים ידנית':'Sync manually'); } else if(tvSyncMode==='ai'){ btn.style.display='block'; btn.innerHTML='🤖 '+(he?'סנכרן עם בינה':'Sync with AI'); } else { btn.style.display='none'; } }
 $$('#tvSyncSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvSyncSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvSyncMode=b.dataset.sync; refreshSyncBtn(); }));
 $('#tvSyncBtn').addEventListener('click',()=>{ const lines=tvLines(); if(!lines.length){toast('הדבק קודם מילים');return;} if(!tvAudio){toast('בחר קודם קובץ שמע');return;} if(tvSyncMode==='ai') runAiSync(lines); else openLyricSync(lines); });
@@ -1304,7 +1331,7 @@ function openLyricSync(lines){
   q('#lsPlay').addEventListener('click',()=>{ if(au.paused){au.play();q('#lsPlay').textContent='⏸ '+(he?'השהה':'Pause');} else {au.pause();q('#lsPlay').textContent='▶︎ '+(he?'נגן':'Play');} });
   q('#lsTap').addEventListener('click',()=>{ if(idx<lines.length){ times[idx]=au.currentTime; idx++; upd(); } });
   q('#lsReset').addEventListener('click',()=>{ idx=0; for(let i=0;i<times.length;i++)times[i]=null; au.currentTime=0; upd(); });
-  const finish=(save)=>{ try{au.pause();}catch(e){} if(save){ tvLyricTimes=times.slice(); updateSyncStatus(); toast(he?'סונכרן ✓':'Synced ✓'); } bg.remove(); };
+  const finish=(save)=>{ try{au.pause();}catch(e){} if(save){ tvLyricTimes=times.slice(); updateSyncStatus(); saveLyricDraft(); toast(he?'סונכרן ✓':'Synced ✓'); } bg.remove(); };
   q('#lsDone').addEventListener('click',()=>finish(true));
   q('#lsClose').addEventListener('click',()=>finish(false));
   bg.addEventListener('click',e=>{ if(e.target===bg) finish(false); });
@@ -1521,7 +1548,7 @@ async function runAiSync(lines){
     const segs = AI.provider==='openai' ? await transcribeOpenAI(tvAudio) : await transcribeGemini(tvAudio);
     const ab=await tvAudio.arrayBuffer(); const abuf=await actx().decodeAudioData(ab.slice(0)); const songDur=abuf.duration;
     tvLyricTimes = alignByText(lines,segs,songDur) || aiSyncTimes(lines,segs,songDur);
-    updateSyncStatus();
+    updateSyncStatus(); saveLyricDraft();
     st.textContent=he?('✓ סונכרן בעזרת בינה ('+segs.length+' מקטעים). אפשר לעבור לידני כדי לתקן.'):('✓ AI-synced ('+segs.length+' segments)');
   }catch(e){ console.error(e); st.textContent='✗ '+(e.message||e); }
 }
@@ -1637,6 +1664,65 @@ enableDrop($('#screen-tovideo'),f=>{
   tvCheck();
 });
 
+/* ============ LYRIC DRAFT (autosave) ============ */
+function saveLyricDraft(){ try{ localStorage.setItem(PREFIX+'lyricdraft', JSON.stringify({ text:$('#tvLyrics').value, times:tvLyricTimes, mode:tvSyncMode, style:tvStyle })); }catch(e){} }
+function restoreLyricDraft(){
+  let d; try{ d=JSON.parse(localStorage.getItem(PREFIX+'lyricdraft')||'null'); }catch(e){ d=null; }
+  if(!d) return;
+  if(d.text){ $('#tvLyrics').value=d.text; $('#tvLyricsOpts').classList.toggle('hide', tvLines().length===0); }
+  if(Array.isArray(d.times)) tvLyricTimes=d.times;
+  if(d.mode){ tvSyncMode=d.mode; $$('#tvSyncSeg button').forEach(x=>x.classList.toggle('on',x.dataset.sync===d.mode)); }
+  if(d.style){ tvStyle=d.style; $$('#tvStyleSeg button').forEach(x=>x.classList.toggle('on',x.dataset.st===d.style)); }
+  refreshSyncBtn(); updateSyncStatus();
+}
+
+/* ============ KEYBOARD: space = play/stop selection in editor ============ */
+document.addEventListener('keydown',e=>{
+  if(e.code!=='Space') return;
+  const tag=(e.target&&e.target.tagName||'').toLowerCase();
+  if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable) return;
+  if($('#screen-editor').classList.contains('hide')||$('#editorMain').classList.contains('hide')) return;
+  e.preventDefault();
+  if(edPlaySrc){ stopEdPlay(); }
+  else if(edActive){ const a=Math.min(edSel.a,edSel.b),b=Math.max(edSel.a,edSel.b); if(b-a<0.02){ playOneBuffer(concatBuffers(edClips.map(c=>c.buffer))); } else { playRegion(a,b,edLoop); } }
+});
+
+/* ============ APPNEST ASSISTANT — per-app map ============ */
+window.APPNEST_ASSISTANT_CONFIG = {
+  appName: 'אולפן AppNest',
+  appDescription: 'אפליקציית אולפן מקומית שרצה בדפדפן ללא העלאה לשרת. יכולות: הקלטת מסך/קול (כולל הקלטת שיר מ-Suno) עם בקרת התחל/השהה/המשך/התחל-מחדש/מחק; עריכת אודיו — גזירה, מחיקה, פיצול, חיבור קטעים, Fade In/Out, נרמול עוצמה, גזירת שקט, ביטול (Undo), וייצוא ל-MP3/WAV; יצירת וידאו משיר+תמונה עם כתוביות מסונכרנות (ידני/אוטומטי/בינה) ב-4 סגנונות (שורה יחידה, קלאסי, קריוקי, מגילה); חיתוך וידאו; והמרת פורמטים. ההקלטות נשמרות בספרייה במכשיר בלבד.',
+  readAiConfig: function(){ if(typeof AI==='undefined' || !AI || !AI.provider) return null; return { provider: AI.provider, keys: { gemini: AI.geminiKey||'', openai: AI.openaiKey||'' } }; },
+  navigate: function(screen){ try{ go(screen); }catch(e){} },
+  tabs: [
+    {name:'בית', screen:'home'},
+    {name:'הקלטה', screen:'record'},
+    {name:'עריכת אודיו', screen:'editor'},
+    {name:'המרת קבצים', screen:'convert'},
+    {name:'שיר לוידאו', screen:'tovideo'},
+    {name:'חיתוך וידאו', screen:'vtrim'},
+    {name:'הספרייה', screen:'library'},
+    {name:'הגדרות', screen:'settings'}
+  ],
+  fields: [ {name:'מילות השיר', label:'תיבת מילות השיר (כתוביות)', selector:'#tvLyrics'} ],
+  suggestions: [
+    'איך מקליטים שיר מ-Suno בלי רעשים?',
+    'איך מסנכרנים את המילים לוידאו?',
+    'מה ההבדל בין סגנונות הכתוביות?',
+    'איך ממירים קובץ ל-MP3?'
+  ],
+  readState: function(){
+    try{
+      var scr=((document.querySelector('.screen:not(.hide)')||{}).id||'').replace('screen-','');
+      var parts=['מסך נוכחי: '+(scr||'?')];
+      if(typeof edActive!=='undefined' && edActive) parts.push('טעון קטע בעורך האודיו');
+      if(typeof tvAudio!=='undefined' && tvAudio) parts.push('נבחר קובץ שמע ליצירת וידאו');
+      if(typeof tvImage!=='undefined' && tvImage) parts.push('נבחרה תמונה');
+      parts.push((typeof aiConnected==='function'&&aiConnected())?('בינה מחוברת: '+(AI.provider==='openai'?'OpenAI':'Gemini')):'בינה לא מחוברת');
+      return parts.join(' · ');
+    }catch(e){ return ''; }
+  }
+};
+
 /* ============ INIT ============ */
 (async function init(){
   applyTheme(); applyPalette(); applyLang();
@@ -1646,11 +1732,12 @@ enableDrop($('#screen-tovideo'),f=>{
   $$('#paletteSeg button').forEach(x=>x.classList.toggle('on',x.dataset.pal===state.palette));
   try{ await openDB(); }catch(e){ console.warn('IndexedDB unavailable',e); }
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
-  updateAiStatus(); refreshSyncBtn();
+  updateAiStatus(); refreshSyncBtn(); restoreLyricDraft();
   go('home');
   if('serviceWorker' in navigator){ try{ navigator.serviceWorker.register('sw.js'); }catch(e){} }
   window.addEventListener('resize',()=>{ if(edActive && !$('#editorMain').classList.contains('hide')) drawWave(); });
 })();
 </script>
+<script src="appnest-assistant.js"></script>
 </body>
 </html>
