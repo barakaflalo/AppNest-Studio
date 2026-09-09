@@ -444,7 +444,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v1.8</span></b>
+        <b>אולפן AppNest <span class="badge">v1.9</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -786,6 +786,38 @@ async function shareItem(it){
     else { download(it.blob,file.name); toast('שיתוף לא נתמך — הקובץ ירד במקום'); }
   }catch(e){ if(e.name!=='AbortError') download(it.blob,file.name); }
 }
+function openLyricsNote(it){
+  const he=state.lang==='he';
+  const bg=document.createElement('div'); bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal">
+    <b>📝 ${he?'מילות השיר':'Song lyrics'}</b>
+    <div class="hint" style="margin-top:4px">${he?'המילים יישמרו יחד עם השיר. בעתיד, כשתיצור קליפ מהשיר הזה, הן ייטענו אוטומטית.':'Saved with the song. When you make a video from it later, they load automatically.'}</div>
+    <textarea id="lnText" rows="9" placeholder="${he?'הדבק כאן את מילות השיר, שורה בכל שורה…':'Paste the lyrics, one line per line…'}" style="width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--txt);padding:11px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-top:10px"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" id="lnSave" style="flex:2">💾 ${he?'שמור מילים':'Save lyrics'}</button>
+      <button class="btn ghost sm" id="lnClear" style="flex:1">🗑 ${he?'מחק':'Clear'}</button>
+    </div>
+    ${it.kind==='audio'?`<button class="btn ghost sm" id="lnToVideo" style="width:100%;margin-top:8px">🎬 ${he?'צור קליפ מהשיר הזה':'Make a clip from this song'}</button>`:''}
+    <button class="btn ghost sm" id="lnClose" style="width:100%;margin-top:8px">${he?'סגור':'Close'}</button>
+  </div>`;
+  document.body.appendChild(bg);
+  const q=s=>bg.querySelector(s);
+  q('#lnText').value=it.lyrics||'';
+  const close=()=>bg.remove();
+  q('#lnSave').addEventListener('click',async()=>{ it.lyrics=q('#lnText').value; await dbPut(it); renderLibrary(); toast(he?'המילים נשמרו ✓':'Lyrics saved ✓'); close(); });
+  q('#lnClear').addEventListener('click',async()=>{ if(confirm(he?'למחוק את המילים השמורות?':'Clear saved lyrics?')){ delete it.lyrics; await dbPut(it); renderLibrary(); toast(he?'נמחק':'Cleared'); close(); } });
+  const toVid=q('#lnToVideo');
+  if(toVid) toVid.addEventListener('click',async()=>{
+    it.lyrics=q('#lnText').value; if(it.lyrics.trim()) await dbPut(it); // keep any edits
+    tvAudio=new File([it.blob], safeName(it.name)+'.'+extForItem(it), {type:it.type||'audio/webm'});
+    $('#tvAudioName').textContent='✓ '+it.name;
+    if(it.lyrics){ $('#tvLyrics').value=it.lyrics; $('#tvLyricsOpts').classList.toggle('hide', tvLines().length===0); tvLyricTimes=[]; $('#tvSyncStatus').textContent=''; saveLyricDraft(); }
+    tvCheck(); close(); go('tovideo');
+    toast(he?'נטען ליצירת וידאו — בחר תמונה וסנכרן':'Loaded — pick an image and sync');
+  });
+  q('#lnClose').addEventListener('click',close);
+  bg.addEventListener('click',e=>{ if(e.target===bg) close(); });
+}
 function openManage(it){
   const he=state.lang==='he';
   const bg=document.createElement('div'); bg.className='modal-bg';
@@ -819,13 +851,16 @@ async function renderLibrary(){
   items.forEach(it=>{
     const el=document.createElement('div'); el.className='lib-item';
     const editBtn=it.kind==='audio'?`<button class="mini" data-act="edit" title="ערוך אודיו">✂️</button>`:'';
+    const hasLyr=it.lyrics&&it.lyrics.trim();
     el.innerHTML=`<span class="kind">${kindEmoji(it.kind)}</span>
-      <div class="meta"><div class="nm">${it.name}</div><div class="sub">${fmtBytes(it.size)}</div></div>
+      <div class="meta"><div class="nm">${it.name}</div><div class="sub">${fmtBytes(it.size)}${hasLyr?' · 📝':''}</div></div>
       <button class="mini" data-act="play" title="נגן">▶︎</button>
       ${editBtn}
+      <button class="mini" data-act="lyrics" title="מילות השיר" style="${hasLyr?'border-color:var(--gold)':''}">📝</button>
       <button class="mini" data-act="share" title="שתף">🔗</button>
       <button class="mini" data-act="manage" title="נהל">✏️</button>`;
     el.querySelector('[data-act=play]').addEventListener('click',()=>previewItem(it,el));
+    el.querySelector('[data-act=lyrics]').addEventListener('click',()=>openLyricsNote(it));
     el.querySelector('[data-act=share]').addEventListener('click',()=>shareItem(it));
     el.querySelector('[data-act=manage]').addEventListener('click',()=>openManage(it));
     const eb=el.querySelector('[data-act=edit]'); if(eb) eb.addEventListener('click',()=>loadIntoEditor(it));
