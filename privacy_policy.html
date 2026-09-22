@@ -7,12 +7,16 @@
 <h1>מדיניות פרטיות — אולפן AppNest</h1>
 <p>עדכון אחרון: ספטמבר 2026</p>
 <h2>עברית</h2>
-<p>אולפן AppNest הוא כלי שרץ במלואו בדפדפן שלך. כל ההקלטות, הקבצים והעריכות נשמרים אך ורק במכשיר שלך (באחסון המקומי ובמסד הנתונים של הדפדפן). שום קובץ, הקלטה או מידע אישי אינם נשלחים לשרת כלשהו של האפליקציה.</p>
-<p>לצורך המרות מתקדמות ולקידוד MP3, האפליקציה טוענת ספריות קוד פתוח (ffmpeg.wasm, lamejs) מרשתות הפצה ציבוריות (CDN). הטעינה הזו מורידה קוד בלבד — הקבצים שלך נשארים במכשיר ומעובדים מקומית, ואינם מועלים.</p>
-<p>המחיקה של נתונים היא בשליטתך המלאה: כפתור "מחק את כל ההקלטות" בהגדרות מוחק הכול מהמכשיר.</p>
+<p>פרויקטי העריכה נשמרים מקומית במסד הנתונים של הדפדפן, כולל הגדרות העריכה ומקורות האודיו הדרושים. קובץ פרויקט ‎.appnest שאתם שומרים מכיל גם אודיו; שמרו ושתפו אותו בהתאם. השמירה המקומית תלויה בדפדפן, בפרופיל ובכתובת האתר, כולל היציאה. מחיקת ספריית ההקלטות אינה מוחקת את שמירת הפרויקט הנפרדת; ניקוי נתוני האתר מוחק גם אותה.</p>
+<p>ההקלטה, עריכת האודיו והייצוא באולפן AppNest מתבצעים בדפדפן. הספרייה והגדרות העבודה נשמרות באחסון הדפדפן במכשיר שלך. הפעלת העריכה והייצוא אינה מעלה את קובצי המדיה לשרת של האפליקציה.</p>
+<p>שירותי הבינה הם אפשרות נפרדת: כאשר מפעילים סנכרון מילים בעזרת בינה, קובץ השמע נשלח ישירות לספק שנבחר (למשל OpenAI או Google) לצורך תמלול. שימוש בעוזר שולח לספק את השיחה ואת הקשר האפליקציה. עיבוד המידע אצל הספק כפוף למדיניותו ולתנאי החשבון שלך. מפתחות החיבור נשמרים בדפדפן; גיבוי הכולל מפתחות מכיל גם אותם.</p>
+<p>לצורך המרות מתקדמות וקידוד MP3, האפליקציה טוענת ספריות קוד פתוח (ffmpeg.wasm, lamejs) מרשתות הפצה ציבוריות (CDN). בקשות הטעינה פונות ל-CDN לקבלת קוד; קובצי המדיה אינם מצורפים לבקשות אלה, וההמרה והקידוד מתבצעים מקומית.</p>
+<p>כפתור "מחק את כל ההקלטות" מוחק את פריטי ספריית ההקלטות בדפדפן. הוא אינו מוחק עותקים שכבר ייצאת למחשב או מידע שנשלח לספק בינה. למחיקת כלל הנתונים השמורים באפליקציה, כולל הגדרות וטיוטות, ניתן לנקות את נתוני האתר בדפדפן.</p>
 <hr>
 <h2>English</h2>
-<p>AppNest Studio runs entirely in your browser. All recordings, files and edits are stored only on your device (browser local storage and IndexedDB). No file, recording or personal data is sent to any app server.</p>
-<p>For advanced conversions and MP3 encoding, the app loads open-source libraries (ffmpeg.wasm, lamejs) from public CDNs. This downloads code only — your files stay on your device and are processed locally; they are never uploaded.</p>
-<p>You are in full control of your data: the "Delete all recordings" button in Settings removes everything from your device.</p>
+<p>Editing projects are saved in browser storage, including edit settings and the audio sources they need. A saved .appnest project file also contains audio; store and share it accordingly. Local persistence belongs to the browser, profile and exact site address, including its port. Deleting the recording library does not delete the separate saved project; clearing site data removes that project too.</p>
+<p>AppNest Studio records, edits audio and exports media in your browser. Its library and working settings are stored in browser storage on your device. Editing and export do not upload your media files to an app server.</p>
+<p>AI services are optional and separate: running AI lyric sync sends the audio file directly to your chosen provider (such as OpenAI or Google) for transcription. Using the assistant sends the conversation and app context to its provider. Provider processing is governed by that provider's policies and your account terms. Connection keys are stored in your browser; a backup that includes keys also contains them.</p>
+<p>For advanced conversions and MP3 encoding, the app loads open-source libraries (ffmpeg.wasm, lamejs) from public CDNs. These requests contact the CDN for code; media files are not included in those requests, and conversion and encoding run locally.</p>
+<p>The "Delete all recordings" button removes recordings from the browser library. It does not delete copies you exported to your computer or information sent to an AI provider. To remove all app data, including settings and drafts, clear the site's data in your browser.</p>
 </body></html>

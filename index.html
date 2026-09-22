@@ -69,6 +69,8 @@
   .tile .em{font-size:30px}
   .tile .t{font-weight:700}
   .tile .s{font-size:12px;color:var(--muted)}
+  .dj-entry{width:100%;font:inherit;color:var(--txt);text-align:start;display:grid;grid-template-columns:auto 1fr auto;gap:18px;margin:8px 0 18px;padding:22px;border-color:var(--gold);background:linear-gradient(125deg,var(--goldsoft),var(--card));}
+  .dj-entry .t{display:block;font-size:20px;margin-bottom:5px}.dj-entry .s{display:block;line-height:1.7}
   .btn{
     background:linear-gradient(180deg,var(--gold),var(--gold2));color:#111;border:none;
     padding:13px 18px;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;
@@ -113,9 +115,9 @@
   .empty .em{font-size:40px;display:block;margin-bottom:8px}
   nav.tab{
     position:fixed;bottom:0;inset-inline:0;background:var(--card);border-top:1px solid var(--line);
-    display:flex;justify-content:space-around;padding:6px 0 max(6px,env(safe-area-inset-bottom));z-index:50
+    display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding:6px 0 max(6px,env(safe-area-inset-bottom));z-index:50
   }
-  nav.tab button{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 12px;font-family:inherit}
+  nav.tab button{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px;min-width:0;min-height:48px;font-family:inherit;overflow-wrap:anywhere}
   nav.tab button .ic{font-size:20px}
   nav.tab button.on{color:var(--gold)}
   .toast{position:fixed;bottom:84px;inset-inline:0;display:flex;justify-content:center;z-index:100;pointer-events:none}
@@ -133,6 +135,8 @@
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;z-index:200;padding:16px}
   .modal{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;max-width:420px;width:100%;box-shadow:var(--shadow)}
 </style>
+<link rel="stylesheet" href="studio-editor.css">
+<link rel="stylesheet" href="studio-dj.css">
 </head>
 <body data-theme="night">
 <div class="wrap">
@@ -148,9 +152,10 @@
   <!-- HOME -->
   <section id="screen-home" class="screen">
     <h2 class="section" data-i="whatToday">מה עושים היום?</h2>
+    <button type="button" class="tile dj-entry" data-go="dj"><span class="em" aria-hidden="true">🎛️</span><span><span class="t" data-i="tDJ">עמדת DJ · חיבור שירים לפי הביט</span><span class="s" data-i="tDJS">שני נגנים, גלי קול, התאמת BPM והאזנה למעבר לפני הייצוא</span></span><span aria-hidden="true">↗</span></button>
     <div class="tiles">
       <div class="tile" data-go="record"><span class="em">🔴</span><span class="t" data-i="tRecord">הקלטה</span><span class="s" data-i="tRecordS">מסך · קול · שניהם</span></div>
-      <div class="tile" data-go="editor"><span class="em">✂️</span><span class="t" data-i="tEdit">עריכת אודיו</span><span class="s" data-i="tEditS">גזירה · חיבור</span></div>
+      <div class="tile" data-go="editor"><span class="em">✂️</span><span class="t" data-i="tEdit">עריכה מדויקת</span><span class="s" data-i="tEditS">גזירה · תיקון מילים · קטעים</span></div>
       <div class="tile" data-go="convert"><span class="em">🔄</span><span class="t" data-i="tConvert">המרת קבצים</span><span class="s" data-i="tConvertS">כל פורמט</span></div>
       <div class="tile" data-go="library"><span class="em">📚</span><span class="t" data-i="tLib">הספרייה שלי</span><span class="s" data-i="tLibS">הקלטות שמורות</span></div>
     </div>
@@ -163,6 +168,9 @@
       <div class="hint" data-i="quickTip">כדי להקליט שיר מ-Suno: בחר "הקלט אודיו מהמחשב", בחר את הטאב של Suno, נגן את השיר, ואז עצור. הקטע יופיע בספרייה — משם אפשר לחתוך, לחבר, ולייצא ל-MP3.</div>
     </div>
   </section>
+
+  <!-- DJ workspace: populated by studio-dj.js -->
+  <section id="screen-dj" class="screen hide"><div class="card"><h1 data-i="djLoading">עמדת DJ</h1><p data-i="djLoadingHint">טוען את עמדת המיקס. אם המסך נשאר כך, רענן את האתר וודא שכל קובצי החבילה הועלו.</p></div></section>
 
   <!-- RECORD -->
   <section id="screen-record" class="screen hide">
@@ -221,79 +229,35 @@
 
   <!-- EDITOR -->
   <section id="screen-editor" class="screen hide">
-    <h2 class="section" data-i="audioEditor">עורך אודיו</h2>
-    <div class="card" id="editorEmpty">
-      <div class="empty"><span class="em">✂️</span><span data-i="editorPick">בחר קטע אודיו לעריכה — מהספרייה, או טען קובץ מהמחשב.</span></div>
-      <button class="btn" id="edLoadFile" data-i="loadFile">📂 טען קובץ אודיו</button>
-      <div class="hint" data-i="editorHint">אפשר גם ללכת לספרייה וללחוץ ✂️ על הקלטה.</div>
+  <div class="studio-heading"><div><h2 data-sp="title">אולפן העריכה</h2><p data-sp="intro">עריכה מדויקת, חיבורים והחלפת קטעים — המקורות נשמרים.</p></div><span class="badge">Studio 2</span></div>
+  <div class="card studio-toolbar"><button class="btn sm" id="edLoadFile" data-sp="load">טען אודיו</button><button class="btn ghost sm" id="spNew" data-sp="new">פרויקט חדש</button><button class="btn ghost sm" id="spSave" data-sp="save">שמור פרויקט לקובץ</button><button class="btn ghost sm" id="spOpen" data-sp="open">פתח פרויקט</button><button class="btn ghost sm" id="spRestore" data-sp="restore">שחזר שמירה מקומית</button><span id="spSaveStatus" role="status"></span></div>
+  <div id="editorEmpty" class="card empty"><b data-sp="empty">טען שיר, הקלטה או ערוץ שירה כדי להתחיל</b><p data-sp="emptyHelp">הוסף קטעים, בחר כל קטע לעריכה ושמור את הפרויקט עם כל קובצי האודיו.</p></div>
+  <div id="editorMain" class="hide">
+    <div class="studio-grid">
+      <div class="studio-main">
+        <div class="card"><div class="studio-toolbar"><label class="sr-only" for="spProjectName" data-sp="projectName">שם הפרויקט</label><input id="spProjectName" type="text" maxlength="200"><button class="btn ghost sm" id="edUndo" data-sp="undo">ביטול</button><button class="btn ghost sm" id="spRedo" data-sp="redo">ביצוע חוזר</button></div><div id="spTimeline" class="studio-timeline" aria-label="Timeline"></div><div id="spProjectInfo" class="hint"></div></div>
+        <div class="card"><div class="studio-toolbar"><b id="edName"></b><span class="badge" data-sp="sourceSafe">מקור שמור</span></div>
+          <div class="studio-wave-wrap"><canvas id="waveC" class="studio-wave" aria-label="Audio waveform" tabindex="0"></canvas><div id="spCursor" class="studio-cursor hide"></div></div>
+          <div id="selInfo" class="hint studio-numeric" role="status"></div>
+          <div class="studio-toolbar"><button class="btn ghost sm" id="spZoomIn" data-sp="zoomIn">הגדל</button><button class="btn ghost sm" id="spZoomOut" data-sp="zoomOut">הקטן</button><button class="btn ghost sm" id="spZoomSel" data-sp="zoomSelection">זום לבחירה</button><button class="btn ghost sm" id="spZoomAll" data-sp="zoomAll">כל הקטע</button><label for="spPan" data-sp="scroll">גלילה</label><input id="spPan" type="range" min="0" max="1000" value="0" aria-label="Waveform scroll"></div>
+          <div class="studio-fields"><label><span data-sp="selectionStart">התחלה בשניות</span><input id="spSelA" type="number" min="0" step="0.001"></label><label><span data-sp="selectionEnd">סיום בשניות</span><input id="spSelB" type="number" min="0" step="0.001"></label><label><span data-sp="nudgeStep">דיוק ההזזה</span><select id="spNudgeStep"><option value="0.001">1 ms</option><option value="0.01" selected>10 ms</option><option value="0.1">100 ms</option></select></label></div>
+          <div class="studio-toolbar" id="nudgeRow"><button class="btn ghost sm" data-edge="a" data-dir="-1" data-sp="startMinus">התחלה −</button><button class="btn ghost sm" data-edge="a" data-dir="1" data-sp="startPlus">התחלה +</button><button class="btn ghost sm" data-edge="b" data-dir="-1" data-sp="endMinus">סיום −</button><button class="btn ghost sm" data-edge="b" data-dir="1" data-sp="endPlus">סיום +</button><button class="btn ghost sm" id="spZero" data-sp="zero">קרב לנקודות שקט</button></div>
+          <div class="studio-toolbar"><button class="btn sm" id="edPlay" data-sp="playSelection">נגן בחירה</button><button class="btn ghost sm" id="edLoop" aria-pressed="false" data-sp="loop">לולאה</button><button class="btn ghost sm" id="edPlayAll" data-sp="playAll">נגן תוצאה</button><button class="btn ghost sm" id="edStop" data-sp="stop">עצור</button></div>
+          <div class="studio-toolbar"><button class="btn ghost sm" id="edTrim" data-sp="trim">השאר בחירה</button><button class="btn ghost sm" id="edDelSel" data-sp="deleteSelection">מחק בחירה</button><button class="btn ghost sm" id="edSplit" data-sp="split">פצל בסוף הבחירה</button><button class="btn ghost sm" id="spCopy" data-sp="copy">שמור כמקטע החלפה</button></div>
+          <div class="studio-fields"><label><span data-sp="gain">עוצמת הקטע · dB</span><input id="spGain" type="number" min="-60" max="18" step="0.5"></label><label><span data-sp="fadeIn">כניסה הדרגתית · ms</span><input id="spFadeIn" type="number" min="0" step="1"></label><label><span data-sp="fadeOut">יציאה הדרגתית · ms</span><input id="spFadeOut" type="number" min="0" step="1"></label></div>
+          <div class="studio-toolbar"><button class="btn ghost sm" id="edNorm" data-sp="match">התאם עוצמות לקטע הנבחר</button><button class="btn ghost sm" id="edTrimSilence" data-sp="trimSilence">גזור שקט בקצות הקטע</button><span id="spClipLevel" class="hint"></span></div>
+        </div>
+        <div class="card"><h3 data-sp="replacement">החלפת מילה או משפט</h3><p class="hint" data-sp="replacementHelp">סמן קטע במקור ושמור כמקטע החלפה, או טען קובץ חלופי. בחר באזור היעד את המילה לתיקון, השווה בהאזנה ואז החלף.</p><button class="btn ghost sm" id="spDonorLoad" data-sp="donorLoad">טען מקור חלופי</button><p id="spDonorInfo" role="status"></p><div class="studio-fields"><label><span data-sp="donorStart">התחלה במקור החלופי · שניות</span><input id="spDonorA" type="number" min="0" step="0.001"></label><label><span data-sp="donorEnd">סיום במקור החלופי · שניות</span><input id="spDonorB" type="number" min="0" step="0.001"></label></div><div class="studio-toolbar"><button class="btn ghost sm" id="spDonorFit" data-sp="fitDonor">כוון אורך בחירת המקור לאורך היעד</button><button class="btn ghost sm" id="spDonorPlay" data-sp="playDonor">האזן למקור החלופי</button></div><p class="hint" data-sp="fitHelp">כיוון האורך משנה את גבול הבחירה בלבד. אין כאן מתיחת זמן או שינוי של קול הזמר.</p><div class="studio-fields"><label><span data-sp="replacementMode">משך התוצאה</span><select id="spReplaceMode"><option value="preserve" data-sp="preserve">שמור את התזמון — דרוש אורך זהה</option><option value="ripple" data-sp="ripple">השתמש באורך המקור והזז את ההמשך</option></select></label><label><span data-sp="seamMs">ריכוך גבולות · ms</span><input id="spSeamMs" type="number" value="10" min="0" max="100" step="1"></label></div><button class="btn" id="spReplace" data-sp="replace">החלף את הבחירה</button><p class="hint" data-sp="replacementNote">עדיף לעבוד עם ערוץ שירה נפרד. אפשר לבטל כל החלפה. ריכוך הגבולות אינו מבטיח התאמה של גובה הצליל, הנשימה או ההגייה.</p></div>
+      </div>
+      <aside class="studio-side">
+        <div class="card"><h3 data-sp="clips">קטעים וחיבורים</h3><p class="hint" data-sp="clipsHelp">לחץ על קטע כדי לערוך אותו. חפיפה נמדדת בין הקטע הנבחר לקודם.</p><div id="clipList"></div><button class="btn ghost sm" id="edAddClip" data-sp="add">הוסף קטע</button><div class="studio-fields"><label><span data-sp="overlap">חפיפה עם הקודם · שניות</span><input id="spOverlap" type="number" min="0" step="0.001"></label><label><span data-sp="curve">עקומת החיבור</span><select id="spCurve"><option value="linear" data-sp="linear">לינארית — חומר דומה</option><option value="equalPower" data-sp="equalPower">עוצמה שווה — קטעים שונים</option></select></label></div><button class="btn ghost sm" id="spAudition" data-sp="audition">האזן סביב החיבור</button><p id="spJoinInfo" class="hint"></p></div>
+        <div class="card"><h3 data-sp="backing">ליווי נפרד / ערוץ מסונו</h3><p class="hint" data-sp="backingHelp">טען כאן ליווי ללא שירה, ובציר הזמן ערוך את ערוץ השירה. טעינת שיר מלא אינה מסירה ממנו את הזמר.</p><button class="btn ghost sm" id="spBackingLoad" data-sp="loadBacking">טען ליווי</button><p id="spBackingInfo"></p><div class="studio-fields"><label><span data-sp="backingGain">עוצמת ליווי · dB</span><input id="spBackingGain" type="number" min="-60" max="18" step="0.5" value="0"></label><label><span data-sp="backingOffset">תחילת הליווי · שניות</span><input id="spBackingOffset" type="number" min="0" step="0.001" value="0"></label></div><button class="btn ghost sm" id="spBackingRemove" data-sp="removeBacking">הסר ליווי מהפרויקט</button></div>
+        <div class="card"><h3 data-sp="export">האזנה וייצוא</h3><label class="switch"><input id="spProtect" type="checkbox" checked><span data-sp="protect">הפחת עוצמה אם השיא עובר ‎−1 dBFS</span></label><p class="hint" data-sp="protectHelp">הגנה על שיאי הדגימות באמצעות הנמכה אחידה. אינה מדידת true-peak או מאסטרינג אוטומטי.</p><div id="spMeter" class="studio-meter"><span></span></div><p id="spOutputInfo" class="hint" role="status"></p><label class="field" for="spExportFormat" data-sp="format">פורמט</label><select id="spExportFormat"><option value="wav24">WAV 24-bit</option><option value="wav16">WAV 16-bit</option><option value="wav32">WAV 32-bit float</option><option value="mp3">MP3</option></select><label class="field" for="spBitrate" data-sp="bitrate">איכות MP3</label><select id="spBitrate"><option>128</option><option>192</option><option selected>320</option></select><button class="btn" id="edExport" data-sp="exportButton">ייצא ושמור בספרייה</button><div class="prog hide" id="edProg"><div></div></div><button class="btn ghost sm hide" id="spCancel" data-sp="cancel">בטל עיבוד</button><p id="spStatus" role="status" aria-live="polite"></p></div>
+        <details class="card"><summary data-sp="sunoTitle">הקול והשיר בסונו</summary><p data-sp="sunoHelp">כדי לחבר ביצועים קיימים, הורד ערוץ שירה וליווי נפרדים מסונו. כדי לשנות רק את זהות הקול של ביצוע, דרוש מנוע המרת קול ייעודי. העורך הזה אינו משכפל קול.</p><a class="link" href="https://help.suno.com/en/articles/11362433" target="_blank" rel="noopener" data-sp="personasLink">Personas ו־Voices בסונו</a><br><a class="link" href="https://help.suno.com/en/articles/13925185" target="_blank" rel="noopener" data-sp="stemsLink">הורדת ערוצים נפרדים מסונו</a></details>
+      </aside>
     </div>
-
-    <div id="editorMain" class="hide">
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <b id="edName">—</b>
-          <button class="mini" id="edClose" title="סגור">✕</button>
-        </div>
-        <canvas class="wave" id="waveC"></canvas>
-        <div class="hint" data-i="waveHint">גרור את הידיות הזהובות כדי לבחור קטע. הקו האדום = מיקום הנגינה.</div>
-        <div id="selInfo" class="hint" style="text-align:center;font-variant-numeric:tabular-nums;margin-top:2px"></div>
-        <div class="row tight" id="nudgeRow" style="margin-top:8px">
-          <button class="btn ghost sm" data-edge="a" data-dir="-1" style="flex:1">−<span data-i="startEdge"> התחלה</span></button>
-          <button class="btn ghost sm" data-edge="a" data-dir="1" style="flex:1"><span data-i="startEdge">התחלה </span>+</button>
-          <button class="btn ghost sm" data-edge="b" data-dir="-1" style="flex:1">−<span data-i="endEdge"> סוף</span></button>
-          <button class="btn ghost sm" data-edge="b" data-dir="1" style="flex:1"><span data-i="endEdge">סוף </span>+</button>
-        </div>
-        <div class="row tight" style="margin-top:8px">
-          <button class="btn ghost sm" id="edUndo" style="flex:1" disabled>↩️ <span data-i="undo">בטל</span></button>
-          <button class="btn ghost sm" id="edLoop" style="flex:1">🔁 <span data-i="loop">לולאה</span></button>
-        </div>
-        <div class="row tight" style="margin-top:8px">
-          <button class="btn ghost sm" id="edPlay" style="flex:1">▶︎ <span data-i="playSel">נגן בחירה</span></button>
-          <button class="btn ghost sm" id="edPlayAll" style="flex:1">⏯ <span data-i="playAll">נגן הכל</span></button>
-          <button class="btn ghost sm" id="edStop" style="flex:1">⏹ <span data-i="stopPlay">עצור</span></button>
-        </div>
-        <div class="row tight" style="margin-top:6px">
-          <button class="btn ghost sm" id="edTrim" style="flex:1">✂️ <span data-i="trimTo">גזור לבחירה</span></button>
-          <button class="btn ghost sm" id="edDelSel" style="flex:1">🗑 <span data-i="delSel">מחק בחירה</span></button>
-          <button class="btn ghost sm" id="edSplit" style="flex:1">⎇ <span data-i="split">פצל כאן</span></button>
-        </div>
-        <div class="row tight" style="margin-top:6px">
-          <button class="btn ghost sm" id="edFadeIn" style="flex:1">🔉 <span data-i="fadeIn">Fade In</span></button>
-          <button class="btn ghost sm" id="edFadeOut" style="flex:1">🔈 <span data-i="fadeOut">Fade Out</span></button>
-          <button class="btn ghost sm" id="edNorm" style="flex:1">📈 <span data-i="normalize">נרמל עוצמה</span></button>
-        </div>
-        <div class="row tight" style="margin-top:6px">
-          <button class="btn ghost sm" id="edTrimSilence" style="flex:1">🤫 <span data-i="trimSilence">גזור שקט מהקצוות</span></button>
-        </div>
-      </div>
-
-      <div class="card">
-        <b data-i="clipsT">הקטעים (לפי סדר)</b>
-        <div class="hint" data-i="clipsH">התוצאה = כל הקטעים מחוברים לפי הסדר. אפשר להוסיף עוד, לסדר מחדש ולמחוק.</div>
-        <div id="clipList" style="margin-top:10px"></div>
-        <button class="btn ghost sm" id="edAddClip" style="margin-top:6px" data-i="addClip">➕ הוסף קטע (חיבור)</button>
-      </div>
-
-      <div class="card">
-        <b data-i="exportT">ייצוא</b>
-        <label class="field" data-i="exportFmt">פורמט</label>
-        <div class="seg" id="expSeg">
-          <button data-fmt="mp3" class="on">MP3</button>
-          <button data-fmt="wav">WAV</button>
-        </div>
-        <div id="brWrap">
-          <label class="field" data-i="bitrate">איכות MP3 (ביטרייט)</label>
-          <div class="seg" id="brSeg">
-            <button data-br="128">128</button>
-            <button data-br="192" class="on">192</button>
-            <button data-br="320">320</button>
-          </div>
-        </div>
-        <button class="btn" id="edExport" style="margin-top:8px" data-i="exportBtn">⬇️ ייצא ושמור</button>
-        <div class="prog hide" id="edProg"><div></div></div>
-      </div>
-    </div>
-  </section>
+  </div>
+</section>
 
   <!-- CONVERT -->
   <section id="screen-convert" class="screen hide">
@@ -431,7 +395,7 @@
     </div>
     <div class="card">
       <b data-i="aiT">🤖 בינה — סנכרון חכם</b>
-      <div class="hint" data-i="aiH">חיבור מפתח (BYOK) לסנכרון אוטומטי של מילות שיר לפי מה שנשמע בשיר. המפתח נשמר רק במכשיר שלך ונשלח ישירות לספק שבחרת.</div>
+      <div class="hint" data-i="aiH">חיבור מפתח (BYOK) לסנכרון מילות שיר בעזרת בינה. בעת סנכרון, קובץ השמע נשלח ישירות לספק שבחרת לצורך תמלול. המפתח נשמר בדפדפן ומשמש לחיבור לספק.</div>
       <div id="aiStatusLine" class="hint" style="margin-top:6px"></div>
       <button class="btn ghost" id="aiSetupBtn" style="margin-top:8px" data-i="aiSetupB">🔑 הגדר חיבור בינה</button>
     </div>
@@ -444,9 +408,9 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v1.9</span></b>
+        <b>אולפן AppNest <span class="badge">v3.0.0 · DJ</span></b>
       </div>
-      <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. הכל רץ אצלך בדפדפן, בלי העלאה לשרת.</div>
+      <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. העריכה והייצוא מתבצעים בדפדפן. שימוש בסנכרון בינה שולח את קובץ השמע לספק שבחרת; העוזר שולח אליו את השיחה והקשר האפליקציה.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
       <div class="row" style="margin-top:12px">
         <button class="btn ghost sm" id="aboutStore" style="flex:1">🏬 <span data-i="aboutStore">חנות AppNest</span></button>
@@ -464,6 +428,7 @@
 <nav class="tab">
   <button data-go="home" class="on"><span class="ic">🏠</span><span data-i="navHome">בית</span></button>
   <button data-go="record"><span class="ic">🔴</span><span data-i="navRec">הקלטה</span></button>
+  <button data-go="dj"><span class="ic">🎛️</span><span data-i="navDJ">מיקס DJ</span></button>
   <button data-go="editor"><span class="ic">✂️</span><span data-i="navEdit">עריכה</span></button>
   <button data-go="library"><span class="ic">📚</span><span data-i="navLib">ספרייה</span></button>
   <button data-go="settings"><span class="ic">⚙️</span><span data-i="navSet">הגדרות</span></button>
@@ -471,6 +436,8 @@
 
 <div class="toast hide" id="toast"><div></div></div>
 
+<script src="studio-audio.js"></script>
+<script src="studio-projects.js"></script>
 <script>
 /* ============ AppNest Studio — vanilla single-file ============ */
 const PREFIX='studio_';
@@ -483,7 +450,9 @@ const I18N={
   en:{
     whatToday:"What are we doing today?",
     tRecord:"Record", tRecordS:"Screen · Audio · Both",
-    tEdit:"Edit audio", tEditS:"Trim · Join",
+    tEdit:"Precision editing", tEditS:"Trim · Words · Clips",
+    tDJ:"DJ workspace · Join songs on the beat", tDJS:"Two decks, waveforms, tempo matching and transition audition before export", navDJ:"DJ mix",
+    djLoading:"DJ workspace", djLoadingHint:"Loading the mixer. If this screen remains, reload the site and check that every package file was uploaded.",
     tConvert:"Convert files", tConvertS:"Any format",
     tLib:"My library", tLibS:"Saved recordings",
     tToVid:"Song → Video (MP4)", tToVidS:"MP3 + image → shareable clip",
@@ -510,7 +479,7 @@ const I18N={
     tVtrim:"Trim video", tVtrimS:"Cut start/end",
     vtrimT:"Trim video", vtrimIntro:"Pick a video, mark start and end, and get an accurately trimmed clip. Uses ffmpeg (loads first time).",
     vtPickB:"📂 Pick a video", vtStart:"Start", vtEnd:"End", vtRunB:"✂️ Trim & save",
-    aiT:"🤖 AI — smart sync", aiH:"Connect a key (BYOK) to auto-sync lyrics to what's heard in the song. The key is stored only on your device and sent directly to the provider you choose.",
+    aiT:"🤖 AI — smart sync", aiH:"Connect a key (BYOK) to sync lyrics with AI. When you run AI sync, the audio file is sent directly to your chosen provider for transcription. The key is stored in your browser and used to connect to that provider.",
     aiSetupB:"🔑 Set up AI connection",
     quickTitle:"Quick tip",
     quickTip:"To record a Suno song: choose \"Record computer audio\", pick the Suno tab, play the song, then stop. It appears in your library — from there you can trim, join and export to MP3.",
@@ -549,7 +518,7 @@ const I18N={
     backupFull:"Full backup", backupSafe:"Backup w/o keys", restoreBk:"Restore",
     backupHint:"Backup includes settings and the lyrics draft (not the recordings themselves — they're large). \"Full\" also includes your AI keys — keep it somewhere safe.",
     tvQualityL:"Resolution / quality", tvQLight:"Mobile-light", tvQHD:"1080p",
-    aboutTxt:"A local recording & editing tool — screen/audio capture, trim, join and format conversion. Part of the AppNest family. Everything runs in your browser, nothing is uploaded.",
+    aboutTxt:"A local recording & editing tool — screen/audio capture, trim, join and format conversion. Part of the AppNest family. Editing and export run in your browser. Optional AI sync sends the audio file to your chosen provider; the assistant sends the conversation and app context.",
     navHome:"Home", navRec:"Record", navEdit:"Edit", navLib:"Library", navSet:"Settings"
   }
 };
@@ -574,6 +543,8 @@ function applyLang(){
   $('#langBtn').textContent=state.lang==='he'?'EN':'עב';
   updateModeHint();
   renderLibrary();
+  window.studioEditor?.refresh();
+  window.studioDJ?.translate();
 }
 function t(key){return (I18N[state.lang]&&I18N[state.lang][key])||I18N.he[key]||key;}
 function applyTheme(){
@@ -597,6 +568,12 @@ function toast(msg){
 
 /* ---------- navigation ---------- */
 function go(name){
+  document.body.classList.toggle("studio-mode",name==="editor");
+  document.body.classList.toggle("dj-mode",name==="dj");
+  if(name!=="dj")window.studioDJ?.stop();
+  else requestAnimationFrame(()=>window.studioDJ?.draw());
+  if(name!=="editor")window.studioEditor?.stop();
+  else requestAnimationFrame(()=>window.studioEditor?.draw());
   $$('.screen').forEach(s=>s.classList.add('hide'));
   const el=$('#screen-'+name); if(el) el.classList.remove('hide');
   $$('nav.tab button').forEach(b=>b.classList.toggle('on',b.dataset.go===name));
@@ -624,7 +601,7 @@ function dbClear(){return new Promise((res,rej)=>{const tx=db.transaction('rec',
 /* ---------- helpers ---------- */
 function fmtTime(sec){sec=Math.max(0,Math.floor(sec));const m=String(Math.floor(sec/60)).padStart(2,'0');const s=String(sec%60).padStart(2,'0');return m+':'+s;}
 function fmtBytes(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(0)+' KB';return (b/1048576).toFixed(1)+' MB';}
-function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),4000);}
+function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.hidden=true;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);}
 function kindEmoji(k){return k==='video'?'🎥':k==='image'?'📸':'🎵';}
 function pickMime(kind){
   const vids=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
@@ -637,6 +614,29 @@ function pickMime(kind){
 /* ============ RECORDING ============ */
 let recMode='audio', mediaRecorder=null, recChunks=[], recStream=null, recTimerInt=null, recStart=0, recPausedAt=0, recPausedTotal=0, mixCtx=null, recAction='save', recKind='audio';
 const NO_PROCESSING={ echoCancellation:false, noiseSuppression:false, autoGainControl:false };
+let recInputTracks=new Set(), recInputEndHandlers=new Map(), recArmVersion=0, recArming=false;
+function ownRecStream(stream, version=recArmVersion){
+  const tracks=stream.getTracks();
+  if(version!==recArmVersion || tracks.some(track=>track.readyState==='ended')){
+    tracks.forEach(track=>track.stop());
+    throw new DOMException('Recording was cancelled','AbortError');
+  }
+  tracks.forEach(track=>{
+    if(recInputTracks.has(track)) return;
+    const ended=()=>{
+      if(!recInputTracks.has(track)) return;
+      const recorder=mediaRecorder;
+      recAction='save';
+      cleanupStream();
+      if(recorder && recorder.state!=='inactive'){
+        try{ recorder.stop(); }catch(e){ mediaRecorder=null; recSetUI('idle'); }
+      }else{ recSetUI('idle'); }
+    };
+    recInputTracks.add(track); recInputEndHandlers.set(track,ended);
+    track.addEventListener('ended',ended);
+  });
+  return stream;
+}
 
 $$('#modeSeg button').forEach(b=>b.addEventListener('click',()=>{
   $$('#modeSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
@@ -652,53 +652,80 @@ function recSetUI(stateName){ // 'idle' | 'armed' | 'recording'
 
 // STEP 1: pick source and get ready (does NOT start recording yet)
 async function armRecording(){
+  if(recArming || recStream || mediaRecorder) return;
+  recArming=true;
+  const captureVersion=++recArmVersion;
   try{
     const wantMic=$('#micToggle').checked;
     let stream;
     if(recMode==='video'){
-      stream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
-      if(wantMic){ try{ const mic=await navigator.mediaDevices.getUserMedia({audio:NO_PROCESSING}); stream=new MediaStream([...stream.getVideoTracks(),...mic.getAudioTracks()]); }catch(e){} }
+      stream=ownRecStream(await navigator.mediaDevices.getDisplayMedia({video:true,audio:false}),captureVersion);
+      if(wantMic){ try{ const mic=ownRecStream(await navigator.mediaDevices.getUserMedia({audio:NO_PROCESSING}),captureVersion); stream=new MediaStream([...stream.getVideoTracks(),...mic.getAudioTracks()]); }catch(e){ if(e.name==='AbortError') throw e; } }
     } else {
-      const disp=await navigator.mediaDevices.getDisplayMedia({video:true, audio:{...NO_PROCESSING}});
+      const disp=ownRecStream(await navigator.mediaDevices.getDisplayMedia({video:true, audio:{...NO_PROCESSING}}),captureVersion);
       const audioTracks=disp.getAudioTracks();
-      if(audioTracks.length===0){ disp.getTracks().forEach(t=>t.stop()); toast('לא שותף אודיו — סמן "שתף אודיו" בחלון הבחירה'); return; }
+      if(audioTracks.length===0){ cleanupStream(); recSetUI('idle'); toast('לא שותף אודיו — סמן "שתף אודיו" בחלון הבחירה'); return; }
       if(recMode==='audio'){
         // no mic -> record the system-audio track DIRECTLY (no AudioContext = no gain artifacts)
         if(!wantMic){ stream=new MediaStream(audioTracks); disp.getVideoTracks().forEach(t=>t.stop()); }
-        else { stream=await buildAudioStream(disp,true); disp.getVideoTracks().forEach(t=>t.stop()); }
+        else { stream=await buildAudioStream(disp,true,captureVersion); disp.getVideoTracks().forEach(t=>t.stop()); }
       } else {
         if(!wantMic){ stream=new MediaStream([...disp.getVideoTracks(),...audioTracks]); }
-        else { const mixed=await buildAudioStream(disp,true); stream=new MediaStream([...disp.getVideoTracks(),...mixed.getAudioTracks()]); }
+        else { const mixed=await buildAudioStream(disp,true,captureVersion); stream=new MediaStream([...disp.getVideoTracks(),...mixed.getAudioTracks()]); }
       }
     }
-    recStream=stream;
+    recStream=ownRecStream(stream,captureVersion);
     recKind=(recMode==='audio')?'audio':'video';
-    // if user stops sharing via the browser bar while armed/recording
-    stream.getTracks().forEach(tr=>{ tr.addEventListener('ended',()=>{ if(mediaRecorder&&mediaRecorder.state!=='inactive'){ recAction='save'; mediaRecorder.stop(); } else if(recStream){ cleanupStream(); recSetUI('idle'); } }); });
     if(recKind==='video'){ const v=$('#livePrev'); v.srcObject=stream; v.classList.remove('hide'); v.play().catch(()=>{}); }
     $('#recTimer').textContent='00:00';
     recSetUI('armed');
-  }catch(err){ console.error(err); if(err&&err.name==='NotAllowedError') toast('הבחירה בוטלה'); else toast('שגיאה: '+(err.message||err.name||'')); }
+  }catch(err){
+    if(captureVersion===recArmVersion){ cleanupStream(); recSetUI('idle'); }
+    if(err && err.name==='AbortError') return;
+    console.error(err);
+    if(err&&err.name==='NotAllowedError') toast('הבחירה בוטלה');
+    else toast('שגיאה: '+(err.message||err.name||''));
+  }finally{ if(captureVersion===recArmVersion) recArming=false; }
 }
 
 // STEP 2: actually start recording the armed stream
 function beginRecording(){
   if(!recStream) return;
-  recChunks=[]; recAction='save';
-  const mime=pickMime(recKind);
-  mediaRecorder=new MediaRecorder(recStream, mime?{mimeType:mime}:undefined);
-  mediaRecorder.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
-  mediaRecorder.onstop=onRecStop;
-  mediaRecorder.start(200);
-  recStart=Date.now(); recPausedTotal=0;
-  recSetUI('recording'); $('#pauseBtn').innerHTML=t('pause');
-  tickTimer(); recTimerInt=setInterval(tickTimer,500);
+  try{
+    recChunks=[]; recAction='save';
+    const mime=pickMime(recKind);
+    mediaRecorder=new MediaRecorder(recStream, mime?{mimeType:mime}:undefined);
+    mediaRecorder.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+    mediaRecorder.onstop=onRecStop;
+    mediaRecorder.onerror=()=>{
+      recAction='save';
+      const recorder=mediaRecorder;
+      cleanupStream();
+      if(recorder && recorder.state!=='inactive'){ try{recorder.stop();}catch(e){} }
+      recSetUI('idle');
+      toast(state.lang==='he'?'ההקלטה נעצרה עקב שגיאה':'Recording stopped because of an error');
+    };
+    mediaRecorder.start(200);
+    recStart=Date.now(); recPausedTotal=0;
+    recSetUI('recording'); $('#pauseBtn').innerHTML=t('pause');
+    tickTimer(); recTimerInt=setInterval(tickTimer,500);
+  }catch(err){
+    mediaRecorder=null; cleanupStream(); recSetUI('idle');
+    toast((state.lang==='he'?'לא ניתן להתחיל הקלטה: ':'Could not start recording: ')+(err.message||err.name||''));
+  }
 }
-async function buildAudioStream(disp, wantMic){
+async function buildAudioStream(disp, wantMic, captureVersion=recArmVersion){
   mixCtx=new (window.AudioContext||window.webkitAudioContext)();
-  const dest=mixCtx.createMediaStreamDestination();
-  mixCtx.createMediaStreamSource(new MediaStream(disp.getAudioTracks())).connect(dest);
-  if(wantMic){ try{ const mic=await navigator.mediaDevices.getUserMedia({audio:NO_PROCESSING}); mixCtx.createMediaStreamSource(mic).connect(dest); }catch(e){ toast('לא ניתן להוסיף מיקרופון'); } }
+  const context=mixCtx;
+  const dest=context.createMediaStreamDestination();
+  ownRecStream(dest.stream,captureVersion);
+  context.createMediaStreamSource(new MediaStream(disp.getAudioTracks())).connect(dest);
+  if(wantMic){
+    try{
+      const mic=ownRecStream(await navigator.mediaDevices.getUserMedia({audio:NO_PROCESSING}),captureVersion);
+      context.createMediaStreamSource(mic).connect(dest);
+    }catch(e){ if(e.name==='AbortError') throw e; toast('לא ניתן להוסיף מיקרופון'); }
+  }
   return dest.stream;
 }
 function tickTimer(){
@@ -706,7 +733,18 @@ function tickTimer(){
   let elapsed=(mediaRecorder.state==='paused')?(recPausedAt-recStart-recPausedTotal):(Date.now()-recStart-recPausedTotal);
   $('#recTimer').innerHTML=(mediaRecorder.state==='recording'?'<span class="dot"></span>':'')+fmtTime(elapsed/1000);
 }
-function cleanupStream(){ if(recStream){ recStream.getTracks().forEach(t=>t.stop()); recStream=null; } if(mixCtx){try{mixCtx.close();}catch(e){} mixCtx=null;} const v=$('#livePrev'); v.srcObject=null; v.classList.add('hide'); }
+function cleanupStream(){
+  recArmVersion++; recArming=false;
+  clearInterval(recTimerInt); recTimerInt=null;
+  const tracks=new Set(recInputTracks);
+  if(recStream) recStream.getTracks().forEach(track=>tracks.add(track));
+  recInputEndHandlers.forEach((handler,track)=>track.removeEventListener('ended',handler));
+  recInputEndHandlers.clear(); recInputTracks.clear(); recStream=null;
+  tracks.forEach(track=>{ try{track.stop();}catch(e){} });
+  const context=mixCtx; mixCtx=null;
+  if(context){ try{ const closing=context.close(); if(closing && closing.catch) closing.catch(()=>{}); }catch(e){} }
+  const v=$('#livePrev'); v.srcObject=null; v.classList.add('hide');
+}
 
 $('#armBtn').addEventListener('click',armRecording);
 $('#beginBtn').addEventListener('click',beginRecording);
@@ -878,307 +916,40 @@ function previewItem(it,el){
   el.after(wrap);
 }
 
-/* ============ AUDIO EDITOR ============ */
-let ac=null; // audio context for editor
-function actx(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); return ac; }
-let edClips=[]; // each: {buffer, start, end, name}  (in seconds within its buffer)
-let edSel={a:0,b:0}; // selection in the FIRST clip's timeline (we edit clip[0] region ops on the merged? -> we operate on a single active buffer)
-let edActive=null;   // {buffer} currently shown in waveform (the working buffer)
-let edPlaySrc=null;
-let edUndoStack=[];
-
-$('#edLoadFile').addEventListener('click',()=>pickAudioFile(f=>loadFileIntoEditor(f)));
-$('#edAddClip').addEventListener('click',()=>pickAudioFile(async f=>{
-  const buf=await decodeFile(f); pushUndo();
-  edClips.push({buffer:buf,start:0,end:buf.duration,name:f.name});
-  renderClips(); toast('קטע נוסף ✓');
-}));
-$('#edClose').addEventListener('click',()=>{ stopEdPlay(); $('#editorMain').classList.add('hide'); $('#editorEmpty').classList.remove('hide'); });
-
-function pickAudioFile(cb){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='audio/*,video/*';
-  inp.onchange=()=>{ if(inp.files[0]) cb(inp.files[0]); }; inp.click();
-}
-async function decodeFile(file){
-  const buf=await file.arrayBuffer();
-  return await actx().decodeAudioData(buf);
-}
-async function loadFileIntoEditor(file){
-  try{ toast('טוען…'); const buf=await decodeFile(file); startEditor(buf,file.name); }
-  catch(e){ toast('לא ניתן לפענח את הקובץ'); }
-}
-async function loadIntoEditor(item){
-  try{ toast('טוען…'); const ab=await item.blob.arrayBuffer(); const buf=await actx().decodeAudioData(ab); startEditor(buf,item.name); go('editor'); }
-  catch(e){ toast('לא ניתן לפענח את ההקלטה'); }
-}
-function startEditor(buffer,name){
-  edClips=[{buffer,start:0,end:buffer.duration,name}];
-  edActive=edClips[0];
-  edSel={a:0,b:buffer.duration};
-  edUndoStack=[];
-  $('#editorEmpty').classList.add('hide'); $('#editorMain').classList.remove('hide');
-  $('#edName').textContent=name;
-  drawWave(); renderClips(); updateUndoBtn();
-}
-/* undo */
-function snapClips(){ return { clips: edClips.map(c=>({buffer:c.buffer,start:c.start,end:c.end,name:c.name})), sel:{a:edSel.a,b:edSel.b} }; }
-function pushUndo(){ edUndoStack.push(snapClips()); if(edUndoStack.length>40) edUndoStack.shift(); updateUndoBtn(); }
-function updateUndoBtn(){ const b=$('#edUndo'); if(b) b.disabled=edUndoStack.length===0; }
-function doUndo(){ if(!edUndoStack.length)return; stopEdPlay(); const s=edUndoStack.pop(); edClips=s.clips.map(c=>({...c})); edActive=edClips[0]; edSel={a:s.sel.a,b:s.sel.b}; drawWave(); renderClips(); updateUndoBtn(); toast(state.lang==='he'?'בוטל ↩️':'Undone ↩️'); }
-function cloneBuffer(buf){ const ctx=actx(); const out=ctx.createBuffer(buf.numberOfChannels,buf.length,buf.sampleRate); for(let ch=0;ch<buf.numberOfChannels;ch++) out.getChannelData(ch).set(buf.getChannelData(ch)); return out; }
-
-/* waveform on clip[0] (the active editing buffer = merged? -> we edit the first clip; others are appended for join) */
-const waveC=$('#waveC'); const wctx=waveC.getContext('2d');
-function drawWave(){
-  if(!edActive) return;
-  const dpr=window.devicePixelRatio||1;
-  const w=waveC.clientWidth, h=120;
-  waveC.width=w*dpr; waveC.height=h*dpr; wctx.setTransform(dpr,0,0,dpr,0,0);
-  const cs=getComputedStyle(document.body);
-  wctx.clearRect(0,0,w,h);
-  const buf=edActive.buffer; const data=buf.getChannelData(0); const N=data.length;
-  const mid=h/2;
-  wctx.strokeStyle=cs.getPropertyValue('--muted').trim()||'#888'; wctx.globalAlpha=.9; wctx.lineWidth=1;
-  wctx.beginPath();
-  for(let x=0;x<w;x++){
-    const i0=Math.floor(x/w*N), i1=Math.floor((x+1)/w*N);
-    let mn=1,mx=-1;
-    for(let i=i0;i<i1;i++){ const v=data[i]; if(v<mn)mn=v; if(v>mx)mx=v; }
-    wctx.moveTo(x+.5,mid+mn*mid*.92); wctx.lineTo(x+.5,mid+mx*mid*.92);
+/* ============ AUDIO EDITOR — Studio 2 host ============ */
+let ac=null, edActive=null;
+function actx(){
+  if(!ac||ac.state==='closed'){
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)throw new Error(state.lang==='he'?'הדפדפן אינו תומך במנוע השמע. נסה דפדפן עדכני.':'This browser does not support the audio engine. Try an up-to-date browser.');
+    ac=new AudioContextClass({sampleRate:48000});
   }
-  wctx.stroke(); wctx.globalAlpha=1;
-  // selection
-  const dur=buf.duration;
-  const xa=edSel.a/dur*w, xb=edSel.b/dur*w;
-  const gold=cs.getPropertyValue('--gold').trim()||'#e8b923';
-  wctx.fillStyle=gold; wctx.globalAlpha=.14; wctx.fillRect(Math.min(xa,xb),0,Math.abs(xb-xa),h); wctx.globalAlpha=1;
-  wctx.fillStyle=gold; wctx.fillRect(xa-2,0,4,h); wctx.fillRect(xb-2,0,4,h);
-  wctx.beginPath();wctx.arc(xa,10,7,0,7);wctx.arc(xb,110,7,0,7);wctx.fill();
-  // playhead
-  if(edPlayhead>=0){ const xp=edPlayhead/dur*w; wctx.strokeStyle='#e5484d'; wctx.lineWidth=2; wctx.beginPath(); wctx.moveTo(xp,0); wctx.lineTo(xp,h); wctx.stroke(); }
-  updateSelInfo();
+  return ac;
 }
-function fmtTimeMs(sec){ sec=Math.max(0,sec); const m=Math.floor(sec/60); const s=(sec%60); return m+':'+(s<10?'0':'')+s.toFixed(1); }
-function updateSelInfo(){ const el=$('#selInfo'); if(!el||!edActive)return; const he=state.lang==='he'; const a=Math.min(edSel.a,edSel.b), b=Math.max(edSel.a,edSel.b); el.textContent=(he?'התחלה ':'start ')+fmtTimeMs(a)+'  ·  '+(he?'סוף ':'end ')+fmtTimeMs(b)+'  ·  '+(he?'אורך ':'len ')+fmtTimeMs(b-a); }
-let edPlayhead=-1;
-// drag handles
-let dragging=null;
-function xToTime(clientX){
-  const r=waveC.getBoundingClientRect(); let x=clientX-r.left;
-  if(document.documentElement.dir==='rtl'){ /* canvas coords are LTR regardless */ }
-  x=Math.max(0,Math.min(r.width,x));
-  return x/r.width*edActive.buffer.duration;
-}
-function pointerDown(e){
-  if(!edActive)return;
-  const cx=e.touches?e.touches[0].clientX:e.clientX;
-  const time=xToTime(cx); const dur=edActive.buffer.duration;
-  const da=Math.abs(time-edSel.a), db=Math.abs(time-edSel.b);
-  if(da<db && da<dur*0.05) dragging='a';
-  else if(db<dur*0.05) dragging='b';
-  else { edSel.a=time; edSel.b=time; dragging='b'; }
-  drawWave();
-}
-function pointerMove(e){
-  if(!dragging||!edActive)return;
-  const cx=e.touches?e.touches[0].clientX:e.clientX;
-  let time=xToTime(cx);
-  edSel[dragging]=time; drawWave();
-}
-function pointerUp(){ if(dragging){ if(edSel.a>edSel.b){const tmp=edSel.a;edSel.a=edSel.b;edSel.b=tmp;} dragging=null; drawWave(); } }
-waveC.addEventListener('mousedown',pointerDown); window.addEventListener('mousemove',pointerMove); window.addEventListener('mouseup',pointerUp);
-waveC.addEventListener('touchstart',e=>{pointerDown(e);},{passive:true}); waveC.addEventListener('touchmove',e=>{pointerMove(e);e.preventDefault();},{passive:false}); waveC.addEventListener('touchend',pointerUp);
-
-$$('#nudgeRow [data-edge]').forEach(btn=>btn.addEventListener('click',()=>{
-  if(!edActive)return; const edge=btn.dataset.edge, step=0.1*(+btn.dataset.dir);
-  edSel[edge]=Math.max(0,Math.min(edActive.buffer.duration, edSel[edge]+step));
-  if(edge==='a') edSel.a=Math.min(edSel.a,edSel.b);
-  if(edge==='b') edSel.b=Math.max(edSel.b,edSel.a);
-  drawWave();
-}));
-$('#edUndo').addEventListener('click',doUndo);
-
-/* buffer ops */
-function sliceBuffer(buffer,from,to){
-  const ctx=actx(); const rate=buffer.sampleRate;
-  const s=Math.max(0,Math.floor(from*rate)), en=Math.min(buffer.length,Math.floor(to*rate));
-  const len=Math.max(1,en-s);
-  const out=ctx.createBuffer(buffer.numberOfChannels,len,rate);
-  for(let ch=0;ch<buffer.numberOfChannels;ch++){ out.getChannelData(ch).set(buffer.getChannelData(ch).subarray(s,en)); }
-  return out;
-}
-function concatBuffers(buffers){
-  const ctx=actx(); const ch=Math.max(...buffers.map(b=>b.numberOfChannels));
-  const rate=buffers[0].sampleRate;
-  const total=buffers.reduce((a,b)=>a+b.length,0);
-  const out=ctx.createBuffer(ch,total,rate);
-  for(let c=0;c<ch;c++){ let off=0; const od=out.getChannelData(c);
-    buffers.forEach(b=>{ const bd=b.getChannelData(Math.min(c,b.numberOfChannels-1)); od.set(bd,off); off+=b.length; }); }
-  return out;
-}
-function deleteRegion(buffer,from,to){
-  const a=sliceBuffer(buffer,0,from), b=sliceBuffer(buffer,to,buffer.duration);
-  if(from<=0) return b; if(to>=buffer.duration) return a;
-  return concatBuffers([a,b]);
-}
-
-$('#edTrim').addEventListener('click',()=>{
-  if(!edActive)return; pushUndo(); const b=sliceBuffer(edActive.buffer,edSel.a,edSel.b);
-  edActive.buffer=b; edClips[0]=edActive; edSel={a:0,b:b.duration}; edPlayhead=-1; drawWave(); renderClips(); toast('נגזר לבחירה ✓');
-});
-$('#edDelSel').addEventListener('click',()=>{
-  if(!edActive)return; if(edSel.b-edSel.a<0.01){toast('אין בחירה');return;} pushUndo();
-  const b=deleteRegion(edActive.buffer,edSel.a,edSel.b);
-  edActive.buffer=b; edClips[0]=edActive; edSel={a:0,b:0}; edPlayhead=-1; drawWave(); renderClips(); toast('הקטע נמחק ✓');
-});
-$('#edSplit').addEventListener('click',()=>{
-  if(!edActive)return; const p=edSel.b; if(p<=0||p>=edActive.buffer.duration){toast('הזז את הקו לנקודת הפיצול');return;} pushUndo();
-  const left=sliceBuffer(edActive.buffer,0,p), right=sliceBuffer(edActive.buffer,p,edActive.buffer.duration);
-  edClips.splice(0,1,{buffer:left,start:0,end:left.duration,name:'חלק 1'},{buffer:right,start:0,end:right.duration,name:'חלק 2'});
-  edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; drawWave(); renderClips(); toast('פוצל לשני קטעים ✓');
-});
-function applyFade(buffer,dir,dur){
-  const out=cloneBuffer(buffer); const rate=out.sampleRate; const n=Math.min(out.length,Math.floor(dur*rate));
-  for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch);
-    for(let i=0;i<n;i++){ const g=i/n; const idx=dir==='in'?i:(out.length-1-i); d[idx]*=g; } }
-  return out;
-}
-function normalizeBuffer(buffer,target=0.98){
-  let peak=0; for(let ch=0;ch<buffer.numberOfChannels;ch++){ const d=buffer.getChannelData(ch); for(let i=0;i<d.length;i++){ const a=Math.abs(d[i]); if(a>peak)peak=a; } }
-  if(peak<1e-4) return {buffer,gain:1};
-  const gain=target/peak; const out=cloneBuffer(buffer);
-  for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; }
-  return {buffer:out,gain};
-}
-$('#edFadeIn').addEventListener('click',()=>{ if(!edClips.length)return; pushUndo(); const c=edClips[0]; const dur=Math.min(3,c.buffer.duration/3); c.buffer=applyFade(c.buffer,'in',dur); edActive=edClips[0]; drawWave(); toast('Fade In הוחל על ההתחלה ✓'); });
-$('#edFadeOut').addEventListener('click',()=>{ if(!edClips.length)return; pushUndo(); const c=edClips[edClips.length-1]; const dur=Math.min(3,c.buffer.duration/3); c.buffer=applyFade(c.buffer,'out',dur); edActive=edClips[0]; drawWave(); toast('Fade Out הוחל על הסוף ✓'); });
-$('#edNorm').addEventListener('click',()=>{
-  if(!edClips.length)return; pushUndo();
-  // global peak across all clips -> one shared gain so the whole result stays balanced
-  let peak=0; edClips.forEach(c=>{ for(let ch=0;ch<c.buffer.numberOfChannels;ch++){ const d=c.buffer.getChannelData(ch); for(let i=0;i<d.length;i++){ const a=Math.abs(d[i]); if(a>peak)peak=a; } } });
-  if(peak<1e-4){ toast('שקט — אין מה לנרמל'); return; }
-  const gain=0.98/peak;
-  edClips.forEach(c=>{ const out=cloneBuffer(c.buffer); for(let ch=0;ch<out.numberOfChannels;ch++){ const d=out.getChannelData(ch); for(let i=0;i<d.length;i++) d[i]*=gain; } c.buffer=out; });
-  edActive=edClips[0]; drawWave(); toast(gain>1?('העוצמה הוגברה ×'+gain.toFixed(2)+' ✓'):'כבר בעוצמה מלאה');
-});
-function findSound(buffer,thresh){
-  const d=buffer.getChannelData(0); const n=d.length; let s=0,e=n-1;
-  while(s<n && Math.abs(d[s])<thresh) s++;
-  while(e>s && Math.abs(d[e])<thresh) e--;
-  return {from:s/buffer.sampleRate, to:(e+1)/buffer.sampleRate};
-}
-$('#edTrimSilence').addEventListener('click',()=>{
-  if(!edClips.length)return; pushUndo(); const thresh=0.015;
-  const first=edClips[0], last=edClips[edClips.length-1];
-  const a=findSound(first.buffer,thresh); first.buffer=sliceBuffer(first.buffer,Math.max(0,a.from-0.05),first.buffer.duration);
-  const b=findSound(last.buffer,thresh); last.buffer=sliceBuffer(last.buffer,0,Math.min(last.buffer.duration,b.to+0.05));
-  edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; drawWave(); renderClips(); toast('שקט נגזר מהקצוות ✓');
-});
-
-/* play */
-let edPlayTimer, edLoop=false;
-function stopEdPlay(){ if(edPlaySrc){try{edPlaySrc.stop();}catch(e){} edPlaySrc=null;} if(edPlayTimer)cancelAnimationFrame(edPlayTimer); edPlayhead=-1; drawWave(); }
-function playRegion(from,to,loop){
-  stopEdPlay(); const ctx=actx(); if(ctx.state==='suspended')ctx.resume();
-  const buffer=edActive.buffer; const src=ctx.createBufferSource(); src.buffer=buffer; src.connect(ctx.destination);
-  const startAt=ctx.currentTime; src.start(0,Math.max(0,from)); edPlaySrc=src;
-  const span=Math.max(0.02,to-from);
-  const tick=()=>{ const el=ctx.currentTime-startAt; if(el>=span){ if(loop&&edPlaySrc===src){ playRegion(from,to,true); } else { stopEdPlay(); } return; } edPlayhead=from+el; drawWave(); edPlayTimer=requestAnimationFrame(tick); };
-  tick();
-}
-function playOneBuffer(buffer){
-  stopEdPlay(); const ctx=actx(); if(ctx.state==='suspended')ctx.resume();
-  const src=ctx.createBufferSource(); src.buffer=buffer; src.connect(ctx.destination); src.start(0); edPlaySrc=src; edPlayhead=-1;
-  src.onended=()=>{ if(edPlaySrc===src) stopEdPlay(); };
-}
-$('#edPlay').addEventListener('click',()=>{ if(!edActive)return; if(edPlaySrc){stopEdPlay();return;} const a=Math.min(edSel.a,edSel.b),b=Math.max(edSel.a,edSel.b); if(b-a<0.02){toast('בחר קטע');return;} playRegion(a,b,edLoop); });
-$('#edPlayAll').addEventListener('click',()=>{ if(!edClips.length)return; if(edPlaySrc){stopEdPlay();return;} playOneBuffer(concatBuffers(edClips.map(c=>c.buffer))); });
-$('#edStop').addEventListener('click',stopEdPlay);
-$('#edLoop').addEventListener('click',()=>{ edLoop=!edLoop; $('#edLoop').classList.toggle('on',edLoop); if(edLoop&&edPlaySrc){ const a=Math.min(edSel.a,edSel.b),b=Math.max(edSel.a,edSel.b); playRegion(a,b,true); } });
-
-/* clips list */
-function renderClips(){
-  const box=$('#clipList'); box.innerHTML='';
-  edClips.forEach((c,i)=>{
-    const el=document.createElement('div'); el.className='clip';
-    el.innerHTML=`<span>${i+1}.</span><span class="ci">${c.name||('קטע '+(i+1))} · ${fmtTime(c.buffer.duration)}</span>
-      <button class="mini" data-a="up" ${i===0?'disabled':''}>↑</button>
-      <button class="mini" data-a="dn" ${i===edClips.length-1?'disabled':''}>↓</button>
-      <button class="mini" data-a="pl">▶︎</button>
-      <button class="mini" data-a="rm" ${edClips.length<=1?'disabled':''}>🗑</button>`;
-    el.querySelector('[data-a=up]').addEventListener('click',()=>{ if(i>0){pushUndo();[edClips[i-1],edClips[i]]=[edClips[i],edClips[i-1]]; edActive=edClips[0]; renderClips(); drawWave();} });
-    el.querySelector('[data-a=dn]').addEventListener('click',()=>{ if(i<edClips.length-1){pushUndo();[edClips[i+1],edClips[i]]=[edClips[i],edClips[i+1]]; edActive=edClips[0]; renderClips(); drawWave();} });
-    el.querySelector('[data-a=pl]').addEventListener('click',()=>playOneBuffer(c.buffer));
-    el.querySelector('[data-a=rm]').addEventListener('click',()=>{ if(edClips.length>1){pushUndo();edClips.splice(i,1); edActive=edClips[0]; edSel={a:0,b:edActive.buffer.duration}; renderClips(); drawWave();} });
-    box.appendChild(el);
+async function decodeFile(file){return actx().decodeAudioData(await file.arrayBuffer());}
+function startEditor(buffer,name){return window.studioEditor.openBuffer(buffer,name);}
+function loadFileIntoEditor(file){return window.studioEditor.importAudio(file);}
+async function loadIntoEditor(item){try{const buffer=await decodeFile(item.blob);await startEditor(buffer,item.name);go('editor');}catch(e){toast(state.lang==='he'?'לא ניתן לפתוח את ההקלטה':'Cannot open recording');console.error(e);}}
+function drawWave(){window.studioEditor?.draw();}
+function stopEdPlay(){window.studioEditor?.stop();}
+function fmtTimeMs(sec){sec=Math.max(0,sec);const m=Math.floor(sec/60),s=sec%60;return m+':'+(s<10?'0':'')+s.toFixed(3);}
+function encodeWAV(buffer){return new Blob([StudioAudio.encodeWav(buffer,{bitDepth:16})],{type:'audio/wav'});}
+let mp3Job=null;
+function cancelMP3(){if(mp3Job){mp3Job.worker.terminate();mp3Job.reject(new Error(state.lang==='he'?'העיבוד בוטל':'Processing cancelled'));mp3Job=null;}}
+function encodeMP3(buffer,onProgress,bitrate=192){
+  if(mp3Job)return Promise.reject(new Error('An MP3 export is already running'));
+  if(buffer.numberOfChannels>2)return Promise.reject(new Error('MP3 export supports mono or stereo'));
+  return new Promise((resolve,reject)=>{
+    const worker=new Worker('studio-mp3-worker.js');
+    const finish=(error,blob)=>{worker.terminate();if(mp3Job?.worker===worker)mp3Job=null;error?reject(error):resolve(blob);};
+    mp3Job={worker,reject};
+    worker.onerror=e=>finish(new Error(e.message||'MP3 encoder could not load'));
+    worker.onmessage=({data})=>{if(data.error)finish(new Error(data.error));else if(data.done){onProgress?.(1);finish(null,new Blob(data.parts,{type:'audio/mpeg'}));}else if(data.progress!=null)onProgress?.(data.progress);};
+    try{const channels=Array.from({length:buffer.numberOfChannels},(_,c)=>buffer.getChannelData(c).slice());worker.postMessage({channels,sampleRate:buffer.sampleRate,bitrate},channels.map(c=>c.buffer));}catch(e){finish(e);}
   });
 }
+window.studioHost={language:()=>state.lang,actx,decodeFile,toast,download,encodeMP3,cancelMP3,setActive:clip=>{edActive=clip;},saveAudio:async(blob,name)=>dbPut({id:'e'+crypto.randomUUID(),kind:'audio',type:blob.type,blob,size:blob.size,name:(state.lang==='he'?'ערוך: ':'Edited: ')+name,created:Date.now()})};
 
-/* export */
-let expFmt='mp3', expBitrate=192;
-$$('#expSeg button').forEach(b=>b.addEventListener('click',()=>{$$('#expSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');expFmt=b.dataset.fmt; $('#brWrap').style.display=expFmt==='mp3'?'block':'none';}));
-$$('#brSeg button').forEach(b=>b.addEventListener('click',()=>{$$('#brSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');expBitrate=+b.dataset.br;}));
-$('#edExport').addEventListener('click',async()=>{
-  if(!edClips.length)return;
-  const prog=$('#edProg'); prog.classList.remove('hide'); prog.firstElementChild.style.width='15%';
-  try{
-    const merged=concatBuffers(edClips.map(c=>c.buffer));
-    let blob,ext;
-    if(expFmt==='wav'){ blob=encodeWAV(merged); ext='wav'; prog.firstElementChild.style.width='100%'; }
-    else{ blob=await encodeMP3(merged,p=>{prog.firstElementChild.style.width=(20+p*0.8)+'%';},expBitrate); ext='mp3'; }
-    const nm=($('#edName').textContent||'edit').replace(/[^\w\u0590-\u05FF]+/g,'_');
-    download(blob,nm+'_edit.'+ext);
-    // also save to library
-    await dbPut({id:'e'+Date.now(),kind:'audio',type:blob.type,blob,size:blob.size,name:'ערוך: '+$('#edName').textContent,created:Date.now()});
-    toast('יוצא ונשמר בספרייה ✓');
-  }catch(e){ console.error(e); toast('שגיאת ייצוא'); }
-  setTimeout(()=>{prog.classList.add('hide');prog.firstElementChild.style.width='0%';},800);
-});
-
-/* WAV encoder */
-function encodeWAV(buffer){
-  const numCh=buffer.numberOfChannels, rate=buffer.sampleRate, len=buffer.length;
-  const bytesPerSample=2; const blockAlign=numCh*bytesPerSample;
-  const dataLen=len*blockAlign; const bufferAB=new ArrayBuffer(44+dataLen); const view=new DataView(bufferAB);
-  const wr=(o,s)=>{for(let i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));};
-  wr(0,'RIFF'); view.setUint32(4,36+dataLen,true); wr(8,'WAVE'); wr(12,'fmt '); view.setUint32(16,16,true);
-  view.setUint16(20,1,true); view.setUint16(22,numCh,true); view.setUint32(24,rate,true);
-  view.setUint32(28,rate*blockAlign,true); view.setUint16(32,blockAlign,true); view.setUint16(34,16,true);
-  wr(36,'data'); view.setUint32(40,dataLen,true);
-  let off=44; const chans=[]; for(let c=0;c<numCh;c++)chans.push(buffer.getChannelData(c));
-  for(let i=0;i<len;i++){ for(let c=0;c<numCh;c++){ let s=Math.max(-1,Math.min(1,chans[c][i])); view.setInt16(off,s<0?s*0x8000:s*0x7FFF,true); off+=2; } }
-  return new Blob([view],{type:'audio/wav'});
-}
-/* MP3 via lamejs (loaded on demand) */
-let lamePromise=null;
-function loadLame(){
-  if(window.lamejs) return Promise.resolve();
-  if(lamePromise) return lamePromise;
-  lamePromise=new Promise((res,rej)=>{
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js';
-    s.onload=res; s.onerror=()=>rej(new Error('lame load failed'));
-    document.head.appendChild(s);
-  });
-  return lamePromise;
-}
-async function encodeMP3(buffer,onProg,bitrate){
-  await loadLame();
-  const numCh=Math.min(2,buffer.numberOfChannels), rate=buffer.sampleRate;
-  const enc=new lamejs.Mp3Encoder(numCh,rate,bitrate||192);
-  const L=buffer.getChannelData(0); const R=numCh>1?buffer.getChannelData(1):L;
-  const to16=(f)=>{const o=new Int16Array(f.length);for(let i=0;i<f.length;i++){let s=Math.max(-1,Math.min(1,f[i]));o[i]=s<0?s*0x8000:s*0x7FFF;}return o;};
-  const l16=to16(L), r16=numCh>1?to16(R):l16;
-  const block=1152; const out=[]; const total=l16.length;
-  for(let i=0;i<total;i+=block){
-    const ls=l16.subarray(i,i+block), rs=r16.subarray(i,i+block);
-    const mp3=numCh>1?enc.encodeBuffer(ls,rs):enc.encodeBuffer(ls);
-    if(mp3.length)out.push(mp3);
-    if(onProg && (i%(block*40)===0)) onProg(i/total);
-  }
-  const end=enc.flush(); if(end.length)out.push(end);
-  return new Blob(out,{type:'audio/mpeg'});
-}
 
 /* ============ CONVERTER ============ */
 let convFile=null, ffmpeg=null, ffmpegLoading=null, currentProg=null;
@@ -1773,27 +1544,17 @@ function restoreLyricDraft(){
   refreshSyncBtn(); updateSyncStatus();
 }
 
-/* ============ KEYBOARD: space = play/stop selection in editor ============ */
-document.addEventListener('keydown',e=>{
-  if(e.code!=='Space') return;
-  const tag=(e.target&&e.target.tagName||'').toLowerCase();
-  if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable) return;
-  if($('#screen-editor').classList.contains('hide')||$('#editorMain').classList.contains('hide')) return;
-  e.preventDefault();
-  if(edPlaySrc){ stopEdPlay(); }
-  else if(edActive){ const a=Math.min(edSel.a,edSel.b),b=Math.max(edSel.a,edSel.b); if(b-a<0.02){ playOneBuffer(concatBuffers(edClips.map(c=>c.buffer))); } else { playRegion(a,b,edLoop); } }
-});
-
 /* ============ APPNEST ASSISTANT — per-app map ============ */
 window.APPNEST_ASSISTANT_CONFIG = {
   appName: 'אולפן AppNest',
-  appDescription: 'אפליקציית אולפן מקומית שרצה בדפדפן ללא העלאה לשרת. יכולות: הקלטת מסך/קול (כולל הקלטת שיר מ-Suno) עם בקרת התחל/השהה/המשך/התחל-מחדש/מחק; עריכת אודיו — גזירה, מחיקה, פיצול, חיבור קטעים, Fade In/Out, נרמול עוצמה, גזירת שקט, ביטול (Undo), וייצוא ל-MP3/WAV; יצירת וידאו משיר+תמונה עם כתוביות מסונכרנות (ידני/אוטומטי/בינה) ב-4 סגנונות (שורה יחידה, קלאסי, קריוקי, מגילה); חיתוך וידאו; והמרת פורמטים. ההקלטות נשמרות בספרייה במכשיר בלבד.',
+  appDescription: 'אפליקציית אולפן עם עריכה וייצוא מקומיים בדפדפן. סנכרון בינה אופציונלי שולח שמע לספק שנבחר; העוזר שולח שיחה והקשר אפליקציה. יכולות: עמדת DJ עם שני נגנים, גלי קול, זיהוי BPM משוער שניתן לתקן, התאמת מהירות, נקודות מעבר, אקולייזר ומעבר A אל B עם ייצוא WAV ושמירת קובץ מיקס; שינוי מהירות משנה גם את גובה הצליל ואין נעילת סולם; הקלטת מסך/קול (כולל הקלטת שיר מ-Suno) עם בקרת התחל/השהה/המשך/התחל-מחדש/מחק; עריכת אודיו — גזירה, מחיקה, פיצול, חיבור קטעים, Fade In/Out, נרמול עוצמה, גזירת שקט, ביטול (Undo), וייצוא ל-MP3/WAV; יצירת וידאו משיר+תמונה עם כתוביות מסונכרנות (ידני/אוטומטי/בינה) ב-4 סגנונות (שורה יחידה, קלאסי, קריוקי, מגילה); חיתוך וידאו; והמרת פורמטים. ההקלטות נשמרות בספרייה במכשיר בלבד.',
   readAiConfig: function(){ if(typeof AI==='undefined' || !AI || !AI.provider) return null; return { provider: AI.provider, keys: { gemini: AI.geminiKey||'', openai: AI.openaiKey||'' } }; },
   navigate: function(screen){ try{ go(screen); }catch(e){} },
   tabs: [
     {name:'בית', screen:'home'},
     {name:'הקלטה', screen:'record'},
-    {name:'עריכת אודיו', screen:'editor'},
+    {name:'עמדת DJ וחיבור לפי הביט', screen:'dj'},
+    {name:'עריכת אודיו מדויקת', screen:'editor'},
     {name:'המרת קבצים', screen:'convert'},
     {name:'שיר לוידאו', screen:'tovideo'},
     {name:'חיתוך וידאו', screen:'vtrim'},
@@ -1802,6 +1563,7 @@ window.APPNEST_ASSISTANT_CONFIG = {
   ],
   fields: [ {name:'מילות השיר', label:'תיבת מילות השיר (כתוביות)', selector:'#tvLyrics'} ],
   suggestions: [
+    'איך מחברים שני שירים לפי הביט בעמדת DJ?',
     'איך מקליטים שיר מ-Suno בלי רעשים?',
     'איך מסנכרנים את המילים לוידאו?',
     'מה ההבדל בין סגנונות הכתוביות?',
@@ -1835,6 +1597,11 @@ window.APPNEST_ASSISTANT_CONFIG = {
   window.addEventListener('resize',()=>{ if(edActive && !$('#editorMain').classList.contains('hide')) drawWave(); });
 })();
 </script>
+<script src="studio-editor.js"></script>
+<script src="studio-dj-engine.js"></script>
+<script src="studio-dj-analysis.js"></script>
+<script src="studio-dj-session.js"></script>
+<script src="studio-dj.js"></script>
 <script src="appnest-assistant.js"></script>
 </body>
 </html>

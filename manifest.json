@@ -1,7 +1,7 @@
 {
   "name": "אולפן AppNest",
   "short_name": "אולפן",
-  "description": "הקלטת מסך וקול, עריכת אודיו והמרת קבצים — מקומי לגמרי",
+  "description": "הקלטת מסך וקול, עריכת אודיו והמרת קבצים מקומית; סנכרון בינה אופציונלי דרך הספק שבחרת",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
