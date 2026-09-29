@@ -1,7 +1,12 @@
 /* AppNest Studio DJ: offline application assets, scoped to this GitHub Pages project.
    Imported songs, session files, external engines and API responses are never cached here. */
 'use strict';
-const VERSION = '3.0.1-release1';
+/* Cloudflare Pages redirects /index.html -> / (308). A cached copy of such a response is marked "redirected",
+   and Chrome refuses to show it for a page load (ERR_FAILED on normal reload). Always hand navigations a clean copy. */
+function cleanNav(r){ if(!r||!r.redirected) return r; return r.blob().then(b=>new Response(b,{status:r.status,statusText:r.statusText,headers:r.headers})); }
+const _respondWith=FetchEvent.prototype.respondWith;
+FetchEvent.prototype.respondWith=function(p){ const nav=this.request.mode==='navigate'; return _respondWith.call(this, nav?Promise.resolve(p).then(cleanNav):p); };
+const VERSION = '3.0.2-cf1';
 const SCOPE = new URL(self.registration.scope);
 const CACHE_PREFIX = 'appnest-studio-dj:' + encodeURIComponent(SCOPE.pathname) + ':';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
