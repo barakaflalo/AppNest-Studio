@@ -1,33 +1,7 @@
-/* ── AppNest · Cloudflare Pages fix (Oct 2026) ──
-   Cloudflare redirects *.html to clean URLs (/index.html -> /). Chrome refuses a
-   "redirected" response that a Service Worker hands to a page load (ERR_FAILED).
-   This strips the redirect flag from every response the SW fetches or reads from cache. */
-(function(){
-  var NB={101:1,204:1,205:1,304:1};
-  function clean(r){
-    if(!r||!r.redirected||NB[r.status])return r;
-    return r.blob().then(function(b){return new Response(b,{status:r.status,statusText:r.statusText,headers:r.headers});});
-  }
-  var _fetch=self.fetch.bind(self);
-  self.fetch=function(input,init){
-    if(input&&typeof input==='object'&&input.mode==='navigate')input=input.url;
-    return _fetch(input,init).then(clean);
-  };
-  var cm=Cache.prototype.match;
-  Cache.prototype.match=function(){return cm.apply(this,arguments).then(clean);};
-  var sm=CacheStorage.prototype.match;
-  CacheStorage.prototype.match=function(){return sm.apply(this,arguments).then(clean);};
-})();
-
 /* AppNest Studio DJ: offline application assets, scoped to this GitHub Pages project.
    Imported songs, session files, external engines and API responses are never cached here. */
 'use strict';
-/* Cloudflare Pages redirects /index.html -> / (308). A cached copy of such a response is marked "redirected",
-   and Chrome refuses to show it for a page load (ERR_FAILED on normal reload). Always hand navigations a clean copy. */
-function cleanNav(r){ if(!r||!r.redirected) return r; return r.blob().then(b=>new Response(b,{status:r.status,statusText:r.statusText,headers:r.headers})); }
-const _respondWith=FetchEvent.prototype.respondWith;
-FetchEvent.prototype.respondWith=function(p){ const nav=this.request.mode==='navigate'; return _respondWith.call(this, nav?Promise.resolve(p).then(cleanNav):p); };
-const VERSION = '3.0.2-cf1';
+const VERSION = '3.1.0-release1';
 const SCOPE = new URL(self.registration.scope);
 const CACHE_PREFIX = 'appnest-studio-dj:' + encodeURIComponent(SCOPE.pathname) + ':';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
