@@ -436,7 +436,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v3.1.0 · DJ</span></b>
+        <b>אולפן AppNest <span class="badge">v3.1.1 · DJ</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. העריכה והייצוא מתבצעים בדפדפן. שימוש בסנכרון בינה שולח את קובץ השמע לספק שבחרת; העוזר שולח אליו את השיחה והקשר האפליקציה.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -1153,7 +1153,7 @@ setTxtColor('#ffffff');
 function refreshSyncBtn(){ const btn=$('#tvSyncBtn'); const he=state.lang==='he'; if(tvSyncMode==='manual'){ btn.style.display='block'; btn.innerHTML='🎯 '+(he?'סנכרן מילים ידנית':'Sync manually'); } else if(tvSyncMode==='ai'){ btn.style.display='block'; btn.innerHTML='🤖 '+(he?'סנכרן עם בינה':'Sync with AI'); } else { btn.style.display='none'; } }
 $$('#tvSyncSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvSyncSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvSyncMode=b.dataset.sync; refreshSyncBtn(); }));
 $('#tvSyncBtn').addEventListener('click',()=>{ const lines=tvLines(); if(!lines.length){toast('הדבק קודם מילים');return;} if(!tvAudio){toast('בחר קודם קובץ שמע');return;} if(tvSyncMode==='ai') runAiSync(lines); else openLyricSync(lines); });
-function updateSyncStatus(){ const el=$('#tvSyncStatus'); if(!el)return; const n=tvLyricTimes.filter(t=>t!=null).length; el.textContent=n?(state.lang==='he'?('✓ מסונכרן: '+n+' שורות'):('✓ Synced: '+n+' lines')):''; }
+function updateSyncStatus(){ const el=$('#tvSyncStatus'); if(!el)return; if(typeof renderTvImgList==='function' && typeof tvImages!=='undefined' && tvImages.length) setTimeout(renderTvImgList,0); const n=tvLyricTimes.filter(t=>t!=null).length; el.textContent=n?(state.lang==='he'?('✓ מסונכרן: '+n+' שורות'):('✓ Synced: '+n+' lines')):''; }
 function openLyricSync(lines){
   const he=state.lang==='he';
   const times=new Array(lines.length).fill(null); let idx=0;
@@ -1267,32 +1267,52 @@ function renderTvImgList(){
   $('#tvMultiOpts').classList.toggle('hide', tvImages.length<2);
   box.innerHTML='';
   const lines=tvLines(); const n=tvImages.length;
+  if(tvSwitch==='lines' && lines.length){ tvImages.forEach((im,i)=>{ if(i>0 && (!im.lineSet || im.line==null || im.line>=lines.length)){ im.line=tvDefaultLine(i,n,lines.length); im.lineSet=false; } }); }
+  let tl=null, lt=null; const effMode=(n<2)?'equal':((tvSwitch==='lines'&&!lines.length)?'equal':tvSwitch);
+  if(tvAudioDur>0 && n>0){
+    lt=lines.length?resolveLineTimes(lines,tvLyricTimes,tvSyncMode,tvAudioDur):null;
+    tl=buildImageTimeline(tvImages.map(im=>({dur:im.dur,line:im.line})),tvAudioDur,effMode,lt);
+  }
+  const posOf={}; if(tl) tl.items.forEach((it,k)=>{ posOf[it.i]={k,start:it.start,end:it.end}; });
+  const synced=tvLyricTimes&&tvLyricTimes.filter(t=>t!=null).length>0&&tvSyncMode!=='auto';
+  function tlLine(i){
+    if(!tl) return (tvAudio&&tvAudioDur===0)?`<br><span class="hint" style="margin:0">${he?'מחשב זמנים…':'calculating…'}</span>`:'';
+    const p=posOf[i]; if(!p) return `<br><span class="hint" style="margin:0;color:var(--red)">${he?'⚠️ לא תוצג — אין מספיק זמן אחרי התמונה הקודמת':'⚠️ will not show — not enough time'}</span>`;
+    const len=p.end-p.start; const order=(effMode==='lines'&&p.k!==i)?(he?' · מוצגת #'+(p.k+1):' · shown #'+(p.k+1)):'';
+    return `<br><span class="hint" style="margin:0;color:${len<3?'var(--red)':'var(--gold)'}">⏱ ${fmtTime(p.start)} → ${fmtTime(p.end)} (${fmtTime(len)})${len<3?(he?' · קצר מאוד':' · very short'):''}${order}</span>`;
+  }
   tvImages.forEach((im,i)=>{
     const el=document.createElement('div'); el.className='clip'; el.style.alignItems='center';
     let ctrl='';
     if(n>1 && tvSwitch==='manual'){
-      ctrl=`<input type="number" min="0.5" step="0.5" value="${im.dur}" data-a="dur" style="width:64px;background:var(--bg2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px"> ${he?'שנ׳':'s'}`;
+      ctrl=`<input type="number" min="1" step="0.5" value="${im.dur}" data-a="dur" style="width:64px;background:var(--bg2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px"> ${he?'שנ׳':'s'}`;
     } else if(n>1 && tvSwitch==='lines'){
       if(i===0) ctrl=`<span class="hint" style="margin:0">${he?'מההתחלה':'from start'}</span>`;
       else if(!lines.length) ctrl=`<span class="hint" style="margin:0">${he?'אין מילים':'no lyrics'}</span>`;
       else {
-        if(im.line==null||im.line>=lines.length) im.line=tvDefaultLine(i,n,lines.length);
-        ctrl=`<select data-a="line" style="max-width:150px;padding:5px;font-size:12px">${lines.map((l,j)=>`<option value="${j}" ${j===im.line?'selected':''}>${j+1}. ${l.replace(/</g,'&lt;').slice(0,28)}</option>`).join('')}</select>`;
+        ctrl=`<select data-a="line" style="max-width:170px;padding:5px;font-size:12px">${lines.map((l,j)=>`<option value="${j}" ${j===im.line?'selected':''}>${j+1}. ${l.replace(/</g,'&lt;').slice(0,24)}${lt&&lt[j]!=null?' ('+fmtTime(lt[j])+')':''}</option>`).join('')}</select>`;
+        if(synced && (tvLyricTimes[im.line]==null)) ctrl+=`<br><span class="hint" style="margin:0;color:var(--red)">${he?'⚠️ השורה לא סונכרנה — זמן משוער':'⚠️ line not synced — estimated'}</span>`;
       }
     }
     el.innerHTML=`<img src="${im.url}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">
-      <span style="flex:1;min-width:0;font-size:13px">${i+1}. <span style="color:var(--muted)">${im.file.name.replace(/</g,'&lt;').slice(0,22)}</span><br>${ctrl}</span>
+      <span style="flex:1;min-width:0;font-size:13px">${i+1}. <span style="color:var(--muted)">${im.file.name.replace(/</g,'&lt;').slice(0,22)}</span><br>${ctrl}${tlLine(i)}</span>
       <button class="mini" data-a="up" ${i===0?'disabled':''}>↑</button>
       <button class="mini" data-a="dn" ${i===n-1?'disabled':''}>↓</button>
       <button class="mini" data-a="rm">🗑</button>`;
     el.querySelector('[data-a=up]').addEventListener('click',()=>{ [tvImages[i-1],tvImages[i]]=[tvImages[i],tvImages[i-1]]; renderTvImgList(); });
     el.querySelector('[data-a=dn]').addEventListener('click',()=>{ [tvImages[i+1],tvImages[i]]=[tvImages[i],tvImages[i+1]]; renderTvImgList(); });
     el.querySelector('[data-a=rm]').addEventListener('click',()=>{ URL.revokeObjectURL(im.url); tvImages.splice(i,1); renderTvImgList(); tvCheck(); });
-    const du=el.querySelector('[data-a=dur]'); if(du) du.addEventListener('change',()=>{ im.dur=Math.max(0.5,+du.value||10); du.value=im.dur; });
-    const sl=el.querySelector('[data-a=line]'); if(sl) sl.addEventListener('change',()=>{ im.line=+sl.value; });
+    const du=el.querySelector('[data-a=dur]'); if(du) du.addEventListener('change',()=>{ im.dur=Math.max(1,+du.value||10); renderTvImgList(); });
+    const sl=el.querySelector('[data-a=line]'); if(sl) sl.addEventListener('change',()=>{ im.line=+sl.value; im.lineSet=true; renderTvImgList(); });
     box.appendChild(el);
   });
   updateTvHints();
+  if(n>1 && tvSwitch==='lines' && lines.length && !synced){
+    const note=document.createElement('div'); note.className='hint'; note.style.color='var(--red)';
+    note.textContent=he?'⚠️ המילים עוד לא סונכרנו, אז הזמנים משוערים בלבד. כדי שהתמונות יתחלפו בדיוק על המילים — סנכרן קודם (ידני), ואז בחר שורות.':'⚠️ Lyrics not synced yet, so times are estimates. Sync first (manual), then pick lines.';
+    box.appendChild(note);
+  }
+  if(tl && tl.dropped.length){ const note=document.createElement('div'); note.className='hint'; note.style.color='var(--red)'; note.textContent=(he?'⚠️ '+tl.dropped.length+' תמונות לא יוצגו. בחר להן שורות מוקדמות יותר או הסר אותן.':'⚠️ '+tl.dropped.length+' images will not show.'); box.appendChild(note); }
 }
 function updateTvHints(){
   const he=state.lang==='he'; const hasLyr=tvLines().length>0;
@@ -1317,7 +1337,14 @@ function videoDims(aspect,quality){
   if(aspect==='9:16') return [Math.round(baseH*9/16/2)*2, baseH];
   return [Math.round(baseH*16/9/2)*2, baseH]; // 16:9
 }
-function tvCheck(){ tvImage=tvImages.length?tvImages[0].file:null; $('#tvRun').disabled=!(tvAudio&&tvImages.length); }
+let tvAudioDur=0, tvAudioDurFor=null;
+async function ensureAudioDur(){
+  if(!tvAudio){ tvAudioDur=0; tvAudioDurFor=null; return; }
+  if(tvAudioDurFor===tvAudio) return;
+  const a=tvAudio; tvAudioDurFor=a; tvAudioDur=0;
+  try{ const ab=await a.arrayBuffer(); const b=await actx().decodeAudioData(ab.slice(0)); if(tvAudioDurFor===a){ tvAudioDur=b.duration; renderTvImgList(); } }catch(e){ tvAudioDur=0; }
+}
+function tvCheck(){ tvImage=tvImages.length?tvImages[0].file:null; $('#tvRun').disabled=!(tvAudio&&tvImages.length); ensureAudioDur(); }
 
 $('#tvRun').addEventListener('click',async()=>{
   if(!(tvAudio&&tvImages.length))return;
@@ -1355,6 +1382,29 @@ function lyricStateAt(pts,t){
   let idx=-1; for(let i=0;i<pts.length;i++){ if(pts[i].t<=t+1e-6) idx=i; else break; }
   if(idx<0) return {cur:'',next:pts.length?pts[0].text:'',idx:-1};
   return {cur:pts[idx].text,next:(idx+1<pts.length)?pts[idx+1].text:'',idx};
+}
+function resolveLineTimes(lines,times,mode,songDur){
+  const valid=times && times.filter(t=>t!=null&&isFinite(t)).length;
+  if(mode==='auto'||!valid) return autoTimes(lines,songDur);
+  const out=lines.map((_,i)=>(times[i]!=null&&isFinite(times[i]))?times[i]:null);
+  fillNulls(out,lines.length,songDur);
+  return out;
+}
+function buildImageTimeline(plan,songDur,mode,lineTimes){
+  const n=plan.length, MIN=1.5; let raw=[];
+  if(mode==='manual'){ let acc=0; for(let i=0;i<n;i++){ raw.push({i,start:acc}); acc+=Math.max(1,+plan[i].dur||10); } }
+  else if(mode==='lines' && lineTimes){
+    for(let i=0;i<n;i++){ let t=null; if(i===0) t=0; else { const L=plan[i].line; if(L!=null && lineTimes[L]!=null && isFinite(lineTimes[L])) t=lineTimes[L]; } raw.push({i,start:t}); }
+    raw.forEach((r,k)=>{ if(r.start==null) r.start=k*songDur/n; });
+    raw.sort((a,b)=>(a.start-b.start)||(a.i-b.i));   // time decides the order, not the list position
+    raw[0].start=0;
+  } else { for(let i=0;i<n;i++) raw.push({i,start:i*songDur/n}); }
+  const items=[], dropped=[];
+  raw.forEach(r=>{ let s=Math.max(0,r.start);
+    if(items.length){ const prev=items[items.length-1].start; if(s<prev+MIN) s=prev+MIN; }
+    if(items.length && s>songDur-MIN) dropped.push(r.i); else items.push({i:r.i,start:s}); });
+  items.forEach((it,k)=>{ it.end=(k+1<items.length)?items[k+1].start:songDur; });
+  return {items,dropped};
 }
 function computeImageStarts(plan,songDur,mode,lineTimes){
   const n=plan.length; let s=[];
@@ -1401,9 +1451,12 @@ async function renderTimelineVideo(audioFile,plan,{W,H,bg,lyrics,switchMode,tran
     pts=lyrics.lines.map((text,i)=>({text,t:lineTimes[i]})).filter(p=>p.t!=null&&isFinite(p.t)&&p.t<songDur).sort((a,b)=>a.t-b.t);
   }
   const texts=pts.map(p=>p.text);
+  const imgLineTimes=lyrics?resolveLineTimes(lyrics.lines,lyrics.times,lyrics.mode,songDur):null;
+  const tl=buildImageTimeline(plan,songDur,switchMode,imgLineTimes);
+  const ordered=tl.items.map(it=>imgs[it.i]); imgs.length=0; ordered.forEach(x=>imgs.push(x));
   const n=imgs.length;
-  const starts=computeImageStarts(plan,songDur,switchMode,lineTimes);
-  const ends=starts.map((s,i)=>i+1<n?starts[i+1]:songDur);
+  const starts=tl.items.map(it=>it.start);
+  const ends=tl.items.map(it=>it.end);
   const kb=transition==='kenburns', fade=transition==='fade'||kb;
   const fadeLen=i=>Math.max(0.2,Math.min(kb?0.8:1.0, 0.4*(ends[i]-starts[i]), i>0?0.4*(ends[i-1]-starts[i-1]):9));
   const FPS=kb?10:12;
