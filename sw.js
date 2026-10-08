@@ -1,7 +1,28 @@
+/* ── AppNest · Cloudflare Pages fix (Oct 2026) ──
+   Cloudflare redirects *.html to clean URLs (/index.html -> /). Chrome refuses a
+   "redirected" response that a Service Worker hands to a page load (ERR_FAILED).
+   This strips the redirect flag from every response the SW fetches or reads from cache. */
+(function(){
+  var NB={101:1,204:1,205:1,304:1};
+  function clean(r){
+    if(!r||!r.redirected||NB[r.status])return r;
+    return r.blob().then(function(b){return new Response(b,{status:r.status,statusText:r.statusText,headers:r.headers});});
+  }
+  var _fetch=self.fetch.bind(self);
+  self.fetch=function(input,init){
+    if(input&&typeof input==='object'&&input.mode==='navigate')input=input.url;
+    return _fetch(input,init).then(clean);
+  };
+  var cm=Cache.prototype.match;
+  Cache.prototype.match=function(){return cm.apply(this,arguments).then(clean);};
+  var sm=CacheStorage.prototype.match;
+  CacheStorage.prototype.match=function(){return sm.apply(this,arguments).then(clean);};
+})();
+
 /* AppNest Studio DJ: offline application assets, scoped to this site (GitHub Pages or Cloudflare Pages).
    Imported songs, session files, external engines and API responses are never cached here. */
 'use strict';
-const VERSION = '3.2.1-release1';
+const VERSION = '3.2.2-release1';
 const SCOPE = new URL(self.registration.scope);
 const CACHE_PREFIX = 'appnest-studio-dj:' + encodeURIComponent(SCOPE.pathname) + ':';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
