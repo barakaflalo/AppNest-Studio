@@ -287,8 +287,8 @@
       <button class="btn ghost" id="tvPickAudio" data-i="tvPickAudioB">📂 בחר שמע</button>
       <div class="hint" id="tvAudioName" style="margin-top:6px"></div>
 
-      <label class="field" data-i="tvImages">🖼️ תמונות (אחת או יותר)</label>
-      <button class="btn ghost" id="tvPickImage" data-i="tvPickImagesB">📂 הוסף תמונות</button>
+      <label class="field" data-i="tvImages">🖼️ תמונות וסרטונים</label>
+      <button class="btn ghost" id="tvPickImage" data-i="tvPickImagesB">📂 הוסף תמונות / סרטונים</button>
       <div id="tvImgList" style="margin-top:8px"></div>
       <div id="tvMultiOpts" class="hide">
         <label class="field" data-i="tvSwitchL">מתי התמונות מתחלפות</label>
@@ -436,7 +436,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span class="logo" style="width:40px;height:40px;font-size:22px;background:radial-gradient(circle at 30% 30%,var(--gold),var(--gold2));border-radius:12px;display:grid;place-items:center;color:#111">🎬</span>
-        <b>אולפן AppNest <span class="badge">v3.1.1 · DJ</span></b>
+        <b>אולפן AppNest <span class="badge">v3.2.0 · DJ</span></b>
       </div>
       <div class="hint" data-i="aboutTxt">כלי הקלטה ועריכה מקומי — הקלטת מסך/קול, גזירה, חיבור, נרמול, שיר→וידאו והמרת פורמטים. חלק ממשפחת AppNest. העריכה והייצוא מתבצעים בדפדפן. שימוש בסנכרון בינה שולח את קובץ השמע לספק שבחרת; העוזר שולח אליו את השיחה והקשר האפליקציה.</div>
       <div class="hint" style="margin-top:6px">פותח: Barak Aflalo · PWA · HTML5 · אחסון על המכשיר בלבד · © AppNest 2026</div>
@@ -520,7 +520,7 @@ const I18N={
     startRec:"● Start recording", pause:"⏸ Pause", resume:"▶︎ Resume", stop:"■ Stop & save",
     armRec:"🎯 Pick source & get ready", armedMsg:"✓ Ready! Play the song in Suno, then hit Start.",
     beginRec:"● Start recording", cancelArm:"✕ Cancel", restartRec:"🔄 Restart", discardRec:"🗑 Discard",
-    tvStyleL:"Subtitle style", tvImages:"🖼️ Images (one or more)", tvPickImagesB:"📂 Add images", tvSwitchL:"When images change", tvSwEqual:"⚖️ Equal time", tvSwLines:"🎤 By lyrics", tvSwManual:"⏱ Manual", tvTransL:"Transition / motion", tvTrCut:"✂️ Straight cut", tvTrFade:"🌫️ Fade", tvTrKb:"🔍 Slow zoom", tvTxtColorL:"Subtitle color", tvTxtColorH:"Current line in your color; other lines in the same color, dimmed.", tvStSingle:"Single line", tvStClassic:"Classic", tvStKaraoke:"Karaoke", tvStScroll:"Scroll",
+    tvStyleL:"Subtitle style", tvImages:"🖼️ Images & videos", tvPickImagesB:"📂 Add images / videos", tvSwitchL:"When images change", tvSwEqual:"⚖️ Equal time", tvSwLines:"🎤 By lyrics", tvSwManual:"⏱ Manual", tvTransL:"Transition / motion", tvTrCut:"✂️ Straight cut", tvTrFade:"🌫️ Fade", tvTrKb:"🔍 Slow zoom", tvTxtColorL:"Subtitle color", tvTxtColorH:"Current line in your color; other lines in the same color, dimmed.", tvStSingle:"Single line", tvStClassic:"Classic", tvStKaraoke:"Karaoke", tvStScroll:"Scroll",
     screenshotT:"📸 Screenshot", screenshotH:"Captures a still image of the screen (no sound). Saved as PNG.",
     takeShot:"📸 Capture screen",
     myLib:"My library",
@@ -1250,58 +1250,93 @@ $('#tvPickAudio').addEventListener('click',()=>{
   const inp=document.createElement('input'); inp.type='file'; inp.accept='audio/*,video/*';
   inp.onchange=()=>{ if(inp.files[0]){ tvAudio=inp.files[0]; $('#tvAudioName').textContent='✓ '+tvAudio.name; tvCheck(); } }; inp.click();
 });
-function tvAddImages(files){
-  [...files].filter(f=>f&&f.type&&f.type.startsWith('image')).forEach(f=>{
-    tvImages.push({file:f,url:URL.createObjectURL(f),dur:10,line:null});
+function probeVideo(file){
+  return new Promise(res=>{
+    const v=document.createElement('video'); v.muted=true; v.preload='metadata'; v.playsInline=true;
+    const u=URL.createObjectURL(file); let done=false;
+    const finish=(dur,thumb)=>{ if(done)return; done=true; try{v.removeAttribute('src');v.load();}catch(e){} URL.revokeObjectURL(u); res({dur,thumb}); };
+    v.onloadedmetadata=()=>{ const d=v.duration; if(!isFinite(d)||d<=0){ finish(0,null); return; } try{ v.currentTime=Math.min(0.3,d/3); }catch(e){ finish(d,null); } };
+    v.onseeked=()=>{ try{ const c=document.createElement('canvas'); const s=Math.min(1,160/Math.max(v.videoWidth,v.videoHeight,1)); c.width=Math.max(1,Math.round(v.videoWidth*s)); c.height=Math.max(1,Math.round(v.videoHeight*s)); c.getContext('2d').drawImage(v,0,0,c.width,c.height); finish(v.duration,c.toDataURL('image/jpeg',0.7)); }catch(e){ finish(v.duration,null); } };
+    v.onerror=()=>finish(0,null);
+    setTimeout(()=>finish(isFinite(v.duration)?v.duration:0,null),8000);
+    v.src=u;
   });
+}
+async function tvAddImages(files){
+  const he=state.lang==='he';
+  for(const f of [...files]){
+    if(!f||!f.type) continue;
+    if(f.type.startsWith('image')) tvImages.push({kind:'image',file:f,url:URL.createObjectURL(f),dur:10,line:null});
+    else if(f.type.startsWith('video')){
+      const it={kind:'video',file:f,url:'',dur:5,vdur:0,line:null,sound:'mute',loading:true};
+      tvImages.push(it); renderTvImgList();
+      const r=await probeVideo(f); it.loading=false;
+      if(!r.dur){ tvImages.splice(tvImages.indexOf(it),1); toast(he?'לא הצלחתי לקרוא את הסרטון '+f.name+' — נסה MP4':'Could not read video '+f.name+' — try MP4'); continue; }
+      it.vdur=r.dur; it.dur=r.dur; it.url=r.thumb||'';
+    }
+  }
   renderTvImgList(); tvCheck();
 }
 $('#tvPickImage').addEventListener('click',()=>{
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*,video/*'; inp.multiple=true;
   inp.onchange=()=>{ if(inp.files&&inp.files.length) tvAddImages(inp.files); }; inp.click();
 });
 function tvDefaultLine(i,n,nLines){ return Math.min(nLines-1, Math.round(i*nLines/n)); }
 function renderTvImgList(){
   const box=$('#tvImgList'); const he=state.lang==='he';
   tvImage=tvImages.length?tvImages[0].file:null;
-  $('#tvMultiOpts').classList.toggle('hide', tvImages.length<2);
+  $('#tvMultiOpts').classList.toggle('hide', tvImages.length<2); updateTvHints();
   box.innerHTML='';
   const lines=tvLines(); const n=tvImages.length;
   if(tvSwitch==='lines' && lines.length){ tvImages.forEach((im,i)=>{ if(i>0 && (!im.lineSet || im.line==null || im.line>=lines.length)){ im.line=tvDefaultLine(i,n,lines.length); im.lineSet=false; } }); }
   let tl=null, lt=null; const effMode=(n<2)?'equal':((tvSwitch==='lines'&&!lines.length)?'equal':tvSwitch);
   if(tvAudioDur>0 && n>0){
     lt=lines.length?resolveLineTimes(lines,tvLyricTimes,tvSyncMode,tvAudioDur):null;
-    tl=buildImageTimeline(tvImages.map(im=>({dur:im.dur,line:im.line})),tvAudioDur,effMode,lt);
+    const hasVid=tvImages.some(im=>im.kind==='video');
+    tl=hasVid?buildMixedTimeline(tvImages.map(im=>({kind:im.kind||'image',dur:im.dur,vdur:im.vdur,line:im.line})),tvAudioDur,effMode,lt)
+             :buildImageTimeline(tvImages.map(im=>({dur:im.dur,line:im.line})),tvAudioDur,effMode,lt);
   }
-  const posOf={}; if(tl) tl.items.forEach((it,k)=>{ posOf[it.i]={k,start:it.start,end:it.end}; });
+  const posOf={}; if(tl) tl.items.forEach((it,k)=>{ posOf[it.i]={k,start:it.start,end:it.end,play:it.play,freeze:it.freeze,cut:it.cut}; });
   const synced=tvLyricTimes&&tvLyricTimes.filter(t=>t!=null).length>0&&tvSyncMode!=='auto';
   function tlLine(i){
     if(!tl) return (tvAudio&&tvAudioDur===0)?`<br><span class="hint" style="margin:0">${he?'מחשב זמנים…':'calculating…'}</span>`:'';
     const p=posOf[i]; if(!p) return `<br><span class="hint" style="margin:0;color:var(--red)">${he?'⚠️ לא תוצג — אין מספיק זמן אחרי התמונה הקודמת':'⚠️ will not show — not enough time'}</span>`;
     const len=p.end-p.start; const order=(effMode==='lines'&&p.k!==i)?(he?' · מוצגת #'+(p.k+1):' · shown #'+(p.k+1)):'';
-    return `<br><span class="hint" style="margin:0;color:${len<3?'var(--red)':'var(--gold)'}">⏱ ${fmtTime(p.start)} → ${fmtTime(p.end)} (${fmtTime(len)})${len<3?(he?' · קצר מאוד':' · very short'):''}${order}</span>`;
+    const isV=tvImages[i]&&tvImages[i].kind==='video';
+    let extra='';
+    if(isV && p.freeze>0.3) extra=he?(' · מ-'+fmtTime(p.start+p.play)+' הפריים האחרון קופא עד סוף השיר'):(' · last frame holds from '+fmtTime(p.start+p.play));
+    if(isV && p.cut) extra=he?' · נחתך בסוף השיר':' · cut at song end';
+    const short=!isV && len<3;
+    return `<br><span class="hint" style="margin:0;color:${short?'var(--red)':'var(--gold)'}">⏱ ${fmtTime(p.start)}${he?' עד ':' → '}${fmtTime(p.end)} (${fmtTime(len)})${short?(he?' · קצר מאוד':' · very short'):''}${order}${extra}</span>`;
   }
   tvImages.forEach((im,i)=>{
     const el=document.createElement('div'); el.className='clip'; el.style.alignItems='center';
     let ctrl='';
-    if(n>1 && tvSwitch==='manual'){
+    if(im.kind==='video'){
+      ctrl=`<span class="hint" style="margin:0">🎬 ${im.loading?(he?'קורא סרטון…':'reading…'):(he?'אורך ':'length ')+fmtTime(im.vdur)}</span> <button class="mini" data-a="snd" title="${he?'קול הסרטון':'video sound'}" style="width:auto;padding:0 8px;font-size:12px">${im.sound==='mix'?(he?'🔉 קול חלש':'🔉 quiet mix'):(he?'🔇 מושתק':'🔇 muted')}</button>`;
+      if(n>1 && tvSwitch==='lines' && i>0 && lines.length) ctrl+='<br>';
+    }
+    if(im.kind==='video' && !(n>1 && tvSwitch==='lines')){ /* video length is fixed: nothing else to set */ }
+    else if(n>1 && tvSwitch==='manual'){
       ctrl=`<input type="number" min="1" step="0.5" value="${im.dur}" data-a="dur" style="width:64px;background:var(--bg2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px"> ${he?'שנ׳':'s'}`;
     } else if(n>1 && tvSwitch==='lines'){
-      if(i===0) ctrl=`<span class="hint" style="margin:0">${he?'מההתחלה':'from start'}</span>`;
-      else if(!lines.length) ctrl=`<span class="hint" style="margin:0">${he?'אין מילים':'no lyrics'}</span>`;
+      if(i===0) ctrl+=`<span class="hint" style="margin:0">${he?'מההתחלה':'from start'}</span>`;
+      else if(!lines.length) ctrl+=`<span class="hint" style="margin:0">${he?'אין מילים':'no lyrics'}</span>`;
       else {
-        ctrl=`<select data-a="line" style="max-width:170px;padding:5px;font-size:12px">${lines.map((l,j)=>`<option value="${j}" ${j===im.line?'selected':''}>${j+1}. ${l.replace(/</g,'&lt;').slice(0,24)}${lt&&lt[j]!=null?' ('+fmtTime(lt[j])+')':''}</option>`).join('')}</select>`;
+        ctrl+=`<select data-a="line" style="max-width:170px;padding:5px;font-size:12px">${lines.map((l,j)=>`<option value="${j}" ${j===im.line?'selected':''}>${j+1}. ${l.replace(/</g,'&lt;').slice(0,24)}${lt&&lt[j]!=null?' ('+fmtTime(lt[j])+')':''}</option>`).join('')}</select>`;
         if(synced && (tvLyricTimes[im.line]==null)) ctrl+=`<br><span class="hint" style="margin:0;color:var(--red)">${he?'⚠️ השורה לא סונכרנה — זמן משוער':'⚠️ line not synced — estimated'}</span>`;
       }
     }
-    el.innerHTML=`<img src="${im.url}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">
+    const thumb=(im.kind==='video'&&!im.url)?`<span style="width:52px;height:52px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;font-size:22px;background:var(--bg2)">🎬</span>`:`<span style="position:relative;display:inline-block"><img src="${im.url}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block">${im.kind==='video'?'<span style="position:absolute;bottom:2px;inset-inline-start:2px;font-size:12px">🎬</span>':''}</span>`;
+    el.innerHTML=`${thumb}
       <span style="flex:1;min-width:0;font-size:13px">${i+1}. <span style="color:var(--muted)">${im.file.name.replace(/</g,'&lt;').slice(0,22)}</span><br>${ctrl}${tlLine(i)}</span>
       <button class="mini" data-a="up" ${i===0?'disabled':''}>↑</button>
       <button class="mini" data-a="dn" ${i===n-1?'disabled':''}>↓</button>
       <button class="mini" data-a="rm">🗑</button>`;
     el.querySelector('[data-a=up]').addEventListener('click',()=>{ [tvImages[i-1],tvImages[i]]=[tvImages[i],tvImages[i-1]]; renderTvImgList(); });
     el.querySelector('[data-a=dn]').addEventListener('click',()=>{ [tvImages[i+1],tvImages[i]]=[tvImages[i],tvImages[i+1]]; renderTvImgList(); });
-    el.querySelector('[data-a=rm]').addEventListener('click',()=>{ URL.revokeObjectURL(im.url); tvImages.splice(i,1); renderTvImgList(); tvCheck(); });
+    el.querySelector('[data-a=rm]').addEventListener('click',()=>{ if(im.kind!=='video') URL.revokeObjectURL(im.url); tvImages.splice(i,1); renderTvImgList(); tvCheck(); });
+    const sb=el.querySelector('[data-a=snd]'); if(sb) sb.addEventListener('click',()=>{ im.sound=im.sound==='mix'?'mute':'mix'; renderTvImgList(); });
     const du=el.querySelector('[data-a=dur]'); if(du) du.addEventListener('change',()=>{ im.dur=Math.max(1,+du.value||10); renderTvImgList(); });
     const sl=el.querySelector('[data-a=line]'); if(sl) sl.addEventListener('change',()=>{ im.line=+sl.value; im.lineSet=true; renderTvImgList(); });
     box.appendChild(el);
@@ -1312,17 +1347,20 @@ function renderTvImgList(){
     note.textContent=he?'⚠️ המילים עוד לא סונכרנו, אז הזמנים משוערים בלבד. כדי שהתמונות יתחלפו בדיוק על המילים — סנכרן קודם (ידני), ואז בחר שורות.':'⚠️ Lyrics not synced yet, so times are estimates. Sync first (manual), then pick lines.';
     box.appendChild(note);
   }
-  if(tl && tl.dropped.length){ const note=document.createElement('div'); note.className='hint'; note.style.color='var(--red)'; note.textContent=(he?'⚠️ '+tl.dropped.length+' תמונות לא יוצגו. בחר להן שורות מוקדמות יותר או הסר אותן.':'⚠️ '+tl.dropped.length+' images will not show.'); box.appendChild(note); }
+  if(tl && tl.dropped.length){ const note=document.createElement('div'); note.className='hint'; note.style.color='var(--red)'; note.textContent=(he?'⚠️ '+tl.dropped.length+' פריטים לא יוצגו (אין להם מקום בשיר). בחר להן שורות מוקדמות יותר, קצר סרטונים או הסר אותם.':'⚠️ '+tl.dropped.length+' images will not show.'); box.appendChild(note); }
 }
 function updateTvHints(){
   const he=state.lang==='he'; const hasLyr=tvLines().length>0;
-  const sw={equal:he?'כל תמונה מוצגת אותו זמן לאורך כל השיר.':'Each image gets equal time across the song.',
+  const hasVid=typeof tvImages!=='undefined'&&tvImages.some(im=>im.kind==='video');
+  const sw={equal:hasVid?(he?'כל סרטון מוצג באורך שלו, והזמן שנשאר מתחלק שווה בין התמונות.':'Each video plays its length; remaining time is split equally between images.'):(he?'כל תמונה מוצגת אותו זמן לאורך כל השיר.':'Each image gets equal time across the song.'),
     lines:hasLyr?(he?'בחר לכל תמונה באיזו שורה היא נכנסת. עובד הכי טוב אחרי סנכרון המילים.':'Pick the lyric line where each image starts. Best after syncing.'):(he?'⚠️ צריך להדביק מילים כדי להשתמש במצב הזה. בלי מילים נשתמש בזמן שווה.':'⚠️ Paste lyrics to use this mode; otherwise equal time is used.'),
     manual:he?'קבע כמה שניות כל תמונה. התמונה האחרונה נשארת עד סוף השיר.':'Set seconds per image. The last image stays until the end.'};
   const tr={cut:he?'הכי מהיר ליצירה.':'Fastest to create.',
     fade:he?'דהייה רכה של כשנייה בין התמונות. איטי מעט יותר ליצירה.':'About 1s soft fade between images. A bit slower.',
     kenburns:he?'זום ותנועה איטית בכל תמונה, עם דהייה ביניהן. הכי איטי ליצירה, מומלץ 720p או "קל למובייל".':'Slow zoom/pan on each image with fades. Slowest; 720p or Mobile-light recommended.'};
-  $('#tvSwitchHint').textContent=sw[tvSwitch]; $('#tvTransHint').textContent=tr[tvTrans];
+  let trh=tr[tvTrans];
+  if(hasVid){ trh+=he?' עם סרטונים: יצירת הקליף לוקחת יותר זמן (כמה דקות לשיר מלא). זום איטי פועל על התמונות בלבד.':' With videos: creating takes longer (minutes for a full song). Slow zoom applies to images only.'; }
+  $('#tvSwitchHint').textContent=sw[tvSwitch]; $('#tvTransHint').textContent=trh;
 }
 $$('#tvSwitchSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvSwitchSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvSwitch=b.dataset.sw; renderTvImgList(); }));
 $$('#tvTransSeg button').forEach(b=>b.addEventListener('click',()=>{ $$('#tvTransSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); tvTrans=b.dataset.tr; updateTvHints(); }));
@@ -1360,12 +1398,13 @@ $('#tvRun').addEventListener('click',async()=>{
     prog.classList.remove('hide'); bar.style.width='5%';
     st.innerHTML='טוען מנוע וידאו (בפעם הראשונה זה כבד — כ-30MB)…';
     await loadFFmpeg(); bar.style.width='25%';
-    const simple=(tvImages.length===1 && !lines.length && tvTrans==='cut');
+    if(tvImages.some(im=>im.loading)){ toast(he?'רגע — עדיין קורא את הסרטונים':'Still reading videos'); prog.classList.add('hide'); return; }
+    const simple=(tvImages.length===1 && tvImages[0].kind!=='video' && !lines.length && tvTrans==='cut');
     if(waveform && !simple) toast(he?'גל הקול זמין רק עם תמונה אחת, בלי מילים ובלי אפקט — מדלגים עליו':'Waveform only works with 1 image, no lyrics, no effect — skipped');
     st.textContent=lines.length?'יוצר וידאו עם כתוביות…':(waveform&&simple?'יוצר וידאו עם גל קול (זה לוקח יותר זמן)…':'יוצר וידאו…');
     currentProg=(p)=>{ bar.style.width=(25+p*73)+'%'; };
     let switchMode=tvSwitch; if(switchMode==='lines' && !lines.length) switchMode='equal';
-    const plan=tvImages.map(im=>({file:im.file,dur:im.dur,line:im.line}));
+    const plan=tvImages.map(im=>({kind:im.kind||'image',file:im.file,dur:im.dur,vdur:im.vdur,line:im.line,sound:im.sound}));
     const blob=await makeSongVideo(tvAudio,plan,{aspect:tvAspect,bg,waveform:waveform&&simple,lyrics,quality:tvQuality,switchMode,transition:tvTrans,
       onRender:(p,label)=>{ bar.style.width=(25+p*73)+'%'; if(label) st.textContent=label; }});
     bar.style.width='100%';
@@ -1390,6 +1429,199 @@ function resolveLineTimes(lines,times,mode,songDur){
   fillNulls(out,lines.length,songDur);
   return out;
 }
+/* ===== images + videos timeline ===== */
+function buildMixedTimeline(plan,songDur,mode,lineTimes){
+  const n=plan.length, MIN=1.5;
+  const isV=i=>plan[i].kind==='video';
+  const vlen=i=>Math.max(0.5,+plan[i].vdur||+plan[i].dur||5);
+  const byLines=(mode==='lines' && !!lineTimes);
+  let order=[...Array(n).keys()], want=null;
+  if(byLines){
+    want=order.map(i=>{ if(i===0) return 0; const L=plan[i].line; return (L!=null&&lineTimes[L]!=null&&isFinite(lineTimes[L]))?lineTimes[L]:i*songDur/n; });
+    order.sort((a,b)=>(want[a]-want[b])||(a-b));
+  }
+  const nImg=order.filter(i=>!isV(i)).length;
+  const vidTotal=order.filter(isV).reduce((s,i)=>s+vlen(i),0);
+  const imgLen=nImg?Math.max(MIN,(songDur-vidTotal)/nImg):0;
+  const items=[], dropped=[]; let cursor=0, prevVideo=false;
+  order.forEach((i,k)=>{
+    let s;
+    if(items.length===0) s=0;
+    else if(prevVideo) s=cursor;                         // next item enters right after a video
+    else if(byLines) s=Math.max(want[i],cursor+MIN);     // cursor = previous image's start
+    else s=cursor;                                       // cursor = previous image's end
+    if(items.length && s>songDur-0.5){ dropped.push(i); return; }
+    const it={i,kind:isV(i)?'video':'image',start:s}; items.push(it);
+    if(it.kind==='video'){ cursor=s+vlen(i); prevVideo=true; }
+    else { prevVideo=false; cursor=byLines?s:s+(mode==='manual'?Math.max(1,+plan[i].dur||10):imgLen); }
+  });
+  items.forEach((it,k)=>{
+    it.end=(k+1<items.length)?items[k+1].start:songDur;
+    if(it.kind==='video'){ const L=vlen(it.i), slot=it.end-it.start; it.play=Math.min(L,slot); it.freeze=Math.max(0,slot-L); it.cut=(L>slot+0.05); }
+  });
+  return {items,dropped};
+}
+async function ffExecChecked(args){
+  const logs=[]; const onLog=({message})=>{ logs.push(String(message)); if(logs.length>80) logs.shift(); };
+  try{ ffmpeg.on('log',onLog); }catch(e){}
+  let ret; try{ ret=await ffmpeg.exec(args); } finally { try{ ffmpeg.off('log',onLog); }catch(e){} }
+  if(typeof ret==='number' && ret!==0){ const err=new Error('ffmpeg exit '+ret+': '+logs.filter(l=>/error|invalid|no such|not found|failed/i.test(l)).slice(-3).join(' | ')); err.logs=logs; throw err; }
+  return logs;
+}
+async function ffHasAudio(name){
+  const logs=[]; const onLog=({message})=>logs.push(String(message));
+  try{ ffmpeg.on('log',onLog); }catch(e){}
+  try{ await ffmpeg.exec(['-hide_banner','-i',name]); }catch(e){} finally { try{ ffmpeg.off('log',onLog); }catch(e){} }
+  return logs.some(l=>/Stream #\d+:\d+.*Audio:/.test(l));
+}
+async function ffDel(names){ for(const nm of names){ try{ await ffmpeg.deleteFile(nm); }catch(e){} } }
+/* renders a run of consecutive images (no lyrics) to a silent mp4 at RUN_FPS */
+async function renderImageRun(imgs,starts,ends,runLen,{W,H,bg,transition,tag,onFrames}){
+  const {fetchFile}=ffmpegUtil; const RUN_FPS=12;
+  const kb=transition==='kenburns', fade=transition==='fade'||kb, n=imgs.length;
+  const fadeLen=i=>Math.max(0.2,Math.min(kb?0.8:1.0,0.4*(ends[i]-starts[i]),i>0?0.4*(ends[i-1]-starts[i-1]):9));
+  let S=[0]; starts.forEach(s=>S.push(s));
+  if(fade) for(let i=1;i<n;i++){ const F=fadeLen(i); for(let k=1;k<=Math.ceil(F*RUN_FPS);k++) S.push(starts[i]+k/RUN_FPS); }
+  if(kb) for(let j=0;j/RUN_FPS<runLen;j++) S.push(j/RUN_FPS);
+  S=S.filter(t=>t>=0&&t<runLen-0.01).sort((a,b)=>a-b); const T=[]; S.forEach(t=>{ if(!T.length||t-T[T.length-1]>0.01) T.push(t); });
+  const kbP=i=>({zin:i%2===0,px:[0.6,-0.6,0,0.5,-0.5][i%5],py:[0,0.4,-0.4,-0.3,0.3][i%5]});
+  const imgAt=(i,t)=>{ const p=Math.min(1,Math.max(0,(t-starts[i])/Math.max(0.1,ends[i]-starts[i]))); if(!kb) return {s:1,px:0,py:0}; const q=kbP(i); return {s:q.zin?1+0.12*p:1.12-0.12*p,px:q.px*(q.zin?p:1-p),py:q.py*(q.zin?p:1-p)}; };
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d'); const fit=kb?'cover':'contain';
+  const draw=t=>{ let k=0; for(let i=0;i<n;i++){ if(starts[i]<=t+1e-6) k=i; }
+    ctx.globalAlpha=1; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); const F=k>0?fadeLen(k):0;
+    if(fade && k>0 && t<starts[k]+F){ const a=(t-starts[k])/F, pp=imgAt(k-1,t), pc=imgAt(k,t); drawImageFit(ctx,imgs[k-1],W,H,fit,pp.s,pp.px,pp.py); ctx.globalAlpha=Math.max(0,Math.min(1,a)); drawImageFit(ctx,imgs[k],W,H,fit,pc.s,pc.px,pc.py); ctx.globalAlpha=1; }
+    else { const pc=imgAt(k,t); drawImageFit(ctx,imgs[k],W,H,fit,pc.s,pc.px,pc.py); } };
+  const CHUNK=360, bounds=[0];
+  if(T.length>CHUNK){ for(let f=CHUNK;f<T.length;f++){ const j=Math.round(T[f]*RUN_FPS); if(Math.abs(T[f]-j/RUN_FPS)<1e-6 && f-bounds[bounds.length-1]>=CHUNK) bounds.push(f); } }
+  bounds.push(T.length);
+  const parts=[];
+  for(let c=0;c+1<bounds.length;c++){
+    const a0=bounds[c], a1=bounds[c+1], files=[]; let list='';
+    for(let f=a0;f<a1;f++){
+      const t=T[f], d=(f+1<T.length?T[f+1]:runLen)-t; draw(t);
+      const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.9)); const nm=tag+'f'+f+'.jpg';
+      await ffmpeg.writeFile(nm,await fetchFile(blob)); files.push(nm);
+      list+="file '"+nm+"'\nduration "+Math.max(0.01,d).toFixed(4)+"\n";
+      if(onFrames && (f%5===0||f===a1-1)){ onFrames(1); await new Promise(r=>setTimeout(r,0)); }
+    }
+    list+="file '"+files[files.length-1]+"'\n";
+    const lname=tag+'list'+c+'.txt', part=tag+'p'+c+'.mp4';
+    await ffmpeg.writeFile(lname,new TextEncoder().encode(list));
+    const partLen=((a1<T.length)?T[a1]:runLen)-T[a0];
+    await ffExecChecked(['-f','concat','-safe','0','-i',lname,'-vf','fps='+RUN_FPS,'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-an','-t',partLen.toFixed(4),part]);
+    parts.push(part); await ffDel(files.concat([lname]));
+  }
+  const out=tag+'.mp4';
+  if(parts.length===1){ const d=await ffmpeg.readFile(parts[0]); await ffmpeg.writeFile(out,d); }
+  else { const pl=tag+'parts.txt'; await ffmpeg.writeFile(pl,new TextEncoder().encode(parts.map(p=>"file '"+p+"'").join('\n')+'\n')); await ffExecChecked(['-f','concat','-safe','0','-i',pl,'-c','copy',out]); await ffDel([pl]); }
+  await ffDel(parts);
+  return {name:out,frames:T.length};
+}
+function countRunFrames(starts,ends,runLen,transition){
+  const RUN_FPS=12, kb=transition==='kenburns', fade=transition==='fade'||kb, n=starts.length;
+  if(kb) return Math.ceil(runLen*RUN_FPS)+n*12;
+  return n+(fade?n*13:0);
+}
+/* transparent lyric overlay frames */
+async function renderLyricOverlay(lyrics,songDur,W,H){
+  const {fetchFile}=ffmpegUtil;
+  const valid=lyrics.times && lyrics.times.filter(t=>t!=null).length;
+  const lineTimes=(lyrics.mode!=='auto' && valid)?lyrics.times:autoTimes(lyrics.lines,songDur);
+  const pts=lyrics.lines.map((text,i)=>({text,t:lineTimes[i]})).filter(p=>p.t!=null&&isFinite(p.t)&&p.t<songDur).sort((a,b)=>a.t-b.t);
+  const texts=pts.map(p=>p.text); const states=[];
+  if(!pts.length) return null;
+  if(pts[0].t>0.05) states.push({cur:'',next:pts[0].text,idx:-1,dur:pts[0].t});
+  pts.forEach((p,i)=>states.push({cur:p.text,next:i+1<pts.length?pts[i+1].text:'',idx:i,dur:Math.max(0.05,(i+1<pts.length?pts[i+1].t:songDur)-p.t)}));
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  const files=[]; let list='';
+  for(let k=0;k<states.length;k++){
+    const s=states[k]; ctx.clearRect(0,0,W,H); ctx.globalAlpha=1;
+    const g=ctx.createLinearGradient(0,H*0.42,0,H); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.80)'); ctx.fillStyle=g; ctx.fillRect(0,H*0.42,W,H*0.58);
+    drawLyricText(ctx,{style:lyrics.style||'classic',color:lyrics.color||'#ffffff',cur:s.cur,next:s.next,lines:texts,idx:s.idx},W,H);
+    const blob=await new Promise(r=>cv.toBlob(r,'image/png')); const nm='lyr'+k+'.png';
+    await ffmpeg.writeFile(nm,await fetchFile(blob)); files.push(nm);
+    list+="file '"+nm+"'\nduration "+s.dur.toFixed(4)+"\n";
+  }
+  list+="file '"+files[files.length-1]+"'\n";
+  await ffmpeg.writeFile('lyrlist.txt',new TextEncoder().encode(list));
+  return {list:'lyrlist.txt',files:files.concat(['lyrlist.txt'])};
+}
+async function renderMixedVideo(audioFile,plan,{W,H,bg,lyrics,switchMode,transition,onRender}){
+  const he=state.lang==='he'; const {fetchFile}=ffmpegUtil; const FPS=24;
+  const report=(fr,label)=>{ if(onRender) onRender(Math.max(0,Math.min(1,fr)),label); };
+  const ab=await audioFile.arrayBuffer(); const abuf=await actx().decodeAudioData(ab.slice(0)); const songDur=abuf.duration;
+  const lineTimes=lyrics?resolveLineTimes(lyrics.lines,lyrics.times,lyrics.mode,songDur):null;
+  const tl=buildMixedTimeline(plan,songDur,switchMode,lineTimes);
+  if(!tl.items.length) throw new Error(he?'אין מה להציג':'Nothing to show');
+  // group consecutive images into runs
+  const segs=[];
+  tl.items.forEach(it=>{ const last=segs[segs.length-1]; if(it.kind==='image' && last && last.kind==='run') last.items.push(it); else segs.push(it.kind==='image'?{kind:'run',items:[it]}:{kind:'video',item:it}); });
+  segs.forEach(s=>{ if(s.kind==='run'){ s.start=s.items[0].start; s.end=s.items[s.items.length-1].end; } else { s.start=s.item.start; s.end=s.item.end; } s.len=Math.max(0.05,s.end-s.start); });
+  const wantFade=transition!=='cut' && segs.length>1;
+  const F=wantFade?Math.max(0.2,Math.min(0.8,0.4*Math.min(...segs.map(s=>s.len)))):0;
+  const audExt=(audioFile.name.match(/\.[^.]+$/)||['.mp3'])[0], audName='mxtrack'+audExt;
+  const temp=[audName];
+  await ffmpeg.writeFile(audName,await fetchFile(audioFile));
+  // 1) materialize segments
+  const totalRunFrames=segs.filter(s=>s.kind==='run').reduce((a,s)=>a+countRunFrames(s.items.map(it=>it.start-s.start),s.items.map(it=>it.end-s.start),s.len+F,transition),0)||1;
+  let framesDone=0;
+  for(let k=0;k<segs.length;k++){
+    const s=segs[k]; const tail=(k<segs.length-1)?F:0;
+    if(s.kind==='run'){
+      const imgs=[]; for(const it of s.items) imgs.push(await loadImageEl(plan[it.i].file));
+      const r=await renderImageRun(imgs,s.items.map(it=>it.start-s.start),s.items.map(it=>it.end-s.start),s.len+tail,{W,H,bg,transition,tag:'run'+k,
+        onFrames:()=>{ framesDone+=5; report(0.45*framesDone/totalRunFrames,(he?'מכין תמונות… ':'Preparing images… ')+Math.min(100,Math.round(100*framesDone/totalRunFrames))+'%'); }});
+      s.file=r.name; temp.push(r.name);
+    } else {
+      const f=plan[s.item.i].file; const ext=(f.name.match(/\.[^.]+$/)||['.mp4'])[0]; s.file='vid'+k+ext;
+      await ffmpeg.writeFile(s.file,await fetchFile(f)); temp.push(s.file);
+      s.mix=(plan[s.item.i].sound==='mix') && await ffHasAudio(s.file);
+    }
+  }
+  // 2) lyrics overlay
+  let lyr=null;
+  if(lyrics){ report(0.47,he?'מכין כתוביות…':'Preparing subtitles…'); lyr=await renderLyricOverlay(lyrics,songDur,W,H); if(lyr) temp.push(...lyr.files); }
+  const bgHex=(bg||'#0a0a0a').replace('#','0x');
+  const build=(useFade,useMix)=>{
+    const args=['-i',audName]; const fc=[];
+    segs.forEach((s,k)=>{
+      args.push('-i',s.file); const ix=k+1; const tg=(s.len+((useFade&&k<segs.length-1)?F:0)).toFixed(3);
+      if(s.kind==='run') fc.push(`[${ix}:v]fps=${FPS},scale=${W}:${H},setsar=1,format=yuv420p,trim=duration=${tg},setpts=PTS-STARTPTS,settb=AVTB[v${k}]`);
+      else { const play=Math.max(0.05,Math.min(s.item.play+((useFade&&k<segs.length-1)?F:0),+tg)).toFixed(3);
+        fc.push(`[${ix}:v]fps=${FPS},scale=${W}:${H}:force_original_aspect_ratio=decrease,pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=${bgHex},setsar=1,format=yuv420p,trim=duration=${play},setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${(Math.max(0,+tg-+play)+0.2).toFixed(3)},trim=duration=${tg},setpts=PTS-STARTPTS,settb=AVTB[v${k}]`); }
+    });
+    if(segs.length===1) fc.push('[v0]null[base]');
+    else if(useFade){ let cur='v0'; for(let k=1;k<segs.length;k++){ const o=k===segs.length-1?'base':'x'+k; fc.push(`[${cur}][v${k}]xfade=transition=fade:duration=${F.toFixed(3)}:offset=${segs[k].start.toFixed(3)}[${o}]`); cur=o; } }
+    else fc.push(segs.map((_,k)=>`[v${k}]`).join('')+`concat=n=${segs.length}:v=1:a=0[base]`);
+    if(lyr){ const lix=segs.length+1; args.push('-f','concat','-safe','0','-i',lyr.list); fc.push(`[${lix}:v]fps=${FPS},format=rgba,setpts=PTS-STARTPTS[lyr]`,`[base][lyr]overlay=0:0:eof_action=pass,format=yuv420p[vout]`); }
+    else fc.push('[base]format=yuv420p[vout]');
+    const mixes=useMix?segs.map((s,k)=>({s,k})).filter(o=>o.s.kind==='video'&&o.s.mix):[];
+    mixes.forEach(({s,k})=>{ const ms=Math.round(s.start*1000); fc.push(`[${k+1}:a]atrim=0:${s.item.play.toFixed(3)},asetpts=PTS-STARTPTS,volume=0.3,adelay=delays=${ms}:all=1[a${k}]`); });
+    let amap='0:a';
+    if(mixes.length){ fc.push('[0:a]'+mixes.map(o=>`[a${o.k}]`).join('')+`amix=inputs=${mixes.length+1}:duration=first:normalize=0[aout]`); amap='[aout]'; }
+    args.push('-filter_complex',fc.join(';'),'-map','[vout]','-map',amap,'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-r',String(FPS),'-c:a','aac','-b:a','192k','-t',songDur.toFixed(3),'out.mp4');
+    return args;
+  };
+  const anyMix=segs.some(s=>s.kind==='video'&&s.mix);
+  const attempts=[{fade:wantFade,mix:true}]; if(wantFade) attempts.push({fade:false,mix:true}); if(anyMix) attempts.push({fade:false,mix:false});
+  let lastErr=null, used=null;
+  for(const a of attempts){
+    try{
+      await ffDel(['out.mp4']);
+      currentProg=p=>report(0.5+0.48*p,he?'מחבר ומקודד את הקליף…':'Joining and encoding…');
+      report(0.5,he?'מחבר ומקודד את הקליף… (זה השלב הארוך)':'Joining and encoding… (longest step)');
+      await ffExecChecked(build(a.fade,a.mix)); used=a; break;
+    }catch(e){ console.warn('mixed attempt failed',a,e); lastErr=e; }
+  }
+  if(!used){ await ffDel(temp); throw lastErr||new Error('encode failed'); }
+  if(wantFade && !used.fade) toast(he?'הדהייה בין הקטעים לא נתמכה כאן — נוצר עם חיתוך ישר':'Fade not supported here — used straight cuts');
+  if(anyMix && !used.mix) toast(he?'לא הצלחתי לערבב את קול הסרטונים — נוצר עם השיר בלבד':'Could not mix video sound — song only');
+  report(1,he?'מסיים…':'Finishing…');
+  const data=await ffmpeg.readFile('out.mp4');
+  await ffDel(temp.concat(['out.mp4']));
+  return new Blob([data.buffer],{type:'video/mp4'});
+}
+
 function buildImageTimeline(plan,songDur,mode,lineTimes){
   const n=plan.length, MIN=1.5; let raw=[];
   if(mode==='manual'){ let acc=0; for(let i=0;i<n;i++){ raw.push({i,start:acc}); acc+=Math.max(1,+plan[i].dur||10); } }
@@ -1511,7 +1743,8 @@ async function renderTimelineVideo(audioFile,plan,{W,H,bg,lyrics,switchMode,tran
     if(chunked){
       const seg='seg'+c+'.mp4';
       report(0.92*done/T.length,(he?'מקודד חלק ':'Encoding part ')+(c+1)+'/'+(bounds.length-1)+'…');
-      await ffmpeg.exec(['-f','concat','-safe','0','-i','list.txt','-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-r',String(FPS),'-an',seg]);
+      const segLen=((a1<T.length)?T[a1]:songDur)-T[a0];
+      await ffmpeg.exec(['-f','concat','-safe','0','-i','list.txt','-vf','fps='+FPS,'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-an','-t',segLen.toFixed(4),seg]);
       segs.push(seg);
       for(const nm of files.concat(['list.txt'])){ try{ await ffmpeg.deleteFile(nm); }catch(e){} }
     } else {
@@ -1541,6 +1774,9 @@ async function makeSongVideo(audioFile,imgPlan,{aspect='16:9',bg='#0a0a0a',wavef
   const imgFile=imgPlan[0].file;
   const dims=videoDims(aspect,quality);
   const hasLyrics=!!(lyrics && lyrics.lines && lyrics.lines.length);
+  if(imgPlan.some(p=>p.kind==='video')){
+    return await renderMixedVideo(audioFile,imgPlan,{W:dims[0],H:dims[1],bg,lyrics:hasLyrics?lyrics:null,switchMode,transition,onRender});
+  }
   if(imgPlan.length>1 || hasLyrics || transition!=='cut'){
     return await renderTimelineVideo(audioFile,imgPlan,{W:dims[0],H:dims[1],bg,lyrics:hasLyrics?lyrics:null,switchMode,transition,onRender});
   }
@@ -1811,7 +2047,7 @@ enableDrop($('#screen-editor'),f=>{ go('editor'); loadFileIntoEditor(f); });
 enableDrop($('#screen-convert'),f=>{ setConvFile(f); });
 enableDrop($('#screen-vtrim'),f=>{ if(f.type.startsWith('video')) setVtFile(f); else toast(state.lang==='he'?'גרור קובץ וידאו':'Drop a video file'); });
 enableDrop($('#screen-tovideo'),f=>{
-  if(f.type.startsWith('image')){ tvAddImages([f]); toast('התמונה נוספה ✓'); }
+  if(f.type.startsWith('image')||f.type.startsWith('video')){ tvAddImages([f]); toast(f.type.startsWith('video')?'הסרטון נוסף ✓':'התמונה נוספה ✓'); }
   else { tvAudio=f; $('#tvAudioName').textContent='✓ '+f.name; toast('השמע נטען ✓'); }
   tvCheck();
 });

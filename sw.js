@@ -1,7 +1,7 @@
 /* AppNest Studio DJ: offline application assets, scoped to this GitHub Pages project.
    Imported songs, session files, external engines and API responses are never cached here. */
 'use strict';
-const VERSION = '3.1.1-release1';
+const VERSION = '3.2.0-release1';
 const SCOPE = new URL(self.registration.scope);
 const CACHE_PREFIX = 'appnest-studio-dj:' + encodeURIComponent(SCOPE.pathname) + ':';
 const CACHE_NAME = CACHE_PREFIX + VERSION;
